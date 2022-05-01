@@ -1,33 +1,22 @@
+import datetime
+import json
+from pathlib import Path
+
+import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import cv2
 import torch.nn as nn
 import torchvision
-from torch.utils.data import (
-    DataLoader,
-    WeightedRandomSampler,
-    ConcatDataset,
-)
-
-from utils.dataset import PhysionetDataset, AmbientaDataset, classes
-from utils.model import ConvNet
-from utils.transforms import (
-    Blur,
-    Close,
-    Erode,
-    ToTensor,
-    Resize,
-    Threshold,
-    Normalize,
-    EqualizeHist,
-)
 from sklearn.metrics import confusion_matrix, f1_score
-from utils.plots import (
-    plot_confusion_matrix,
-    plot_comparing_confusion_matrix,
-    plot_class_weights,
-)
+from torch.utils.data import ConcatDataset, DataLoader, WeightedRandomSampler
+
+from utils.dataset import AmbientaDataset, PhysionetDataset, classes
+from utils.model import ConvNet
+from utils.plots import (plot_class_weights, plot_comparing_confusion_matrix,
+                         plot_confusion_matrix)
+from utils.transforms import (Blur, Close, EqualizeHist, Erode, Normalize,
+                              Resize, Threshold, ToTensor)
 
 ################
 #
@@ -36,11 +25,23 @@ from utils.plots import (
 ################
 
 num_trainings = 1
-num_epochs = 2
+num_epochs = 1
 learning_rate = 0.005
-batch_size = 100
+batch_size = 1000
 num_classes = len(classes)
 
+composed_transforms = torchvision.transforms.Compose(
+    [
+        Resize((26, 64), cv2.INTER_LINEAR),
+        Normalize(),
+        EqualizeHist(),
+        Blur((5, 5)),
+        Erode(),
+        # Threshold(),
+        Resize((52, 128), cv2.INTER_LINEAR),
+        ToTensor(),
+    ]
+)
 
 def main():
 
@@ -49,19 +50,6 @@ def main():
     # Data Reading & Preprocessing
     #
     ################
-
-    composed_transforms = torchvision.transforms.Compose(
-        [
-            Resize((26, 64), cv2.INTER_LINEAR),
-            Normalize(),
-            EqualizeHist(),
-            Blur((5, 5)),
-            Erode(),
-            # Threshold(),
-            Resize((52, 128), cv2.INTER_LINEAR),
-            ToTensor(),
-        ]
-    )
 
     train_dataset = ConcatDataset(
         [
@@ -82,27 +70,13 @@ def main():
 
     # Over- & Undersampling
     train_labels = np.concatenate(
-        [train_dataset.datasets[0].y, train_dataset.datasets[1].y]
+        list(map(lambda dataset: dataset.y, train_dataset.datasets))
     )
     test_labels = np.concatenate(
-        [test_dataset.datasets[0].y, test_dataset.datasets[1].y]
+        list(map(lambda dataset: dataset.y, test_dataset.datasets))
     )
     _, train_class_counts = np.unique(train_labels, return_counts=True)
     _, test_class_counts = np.unique(test_labels, return_counts=True)
-
-    # plot_class_weights(
-    #     [
-    #         train_class_counts / train_class_counts.sum(),
-    #         test_class_counts / test_class_counts.sum(),
-    #     ],
-    #     classes,
-    #     [
-    #         "Training Data Class Weights",
-    #         "Test Data Class Weights",
-    #     ],
-    # )
-    # plt.show()
-
     weights = np.asarray([1.0 / train_class_counts[c] for c in train_labels])
     train_sampler = WeightedRandomSampler(
         weights=weights, num_samples=len(weights), replacement=True
@@ -112,7 +86,7 @@ def main():
     conf_mats = []
     finished = 2
     for i in range(num_trainings):
-        conf_mat, acc = train_model(train_dataset, test_dataset, train_sampler)
+        conf_mat, acc = train_model(train_dataset, test_dataset, train_sampler, save_model=True)
         print(f"Accuracy of {i+1}. Network: {acc:.4f}")
         print(conf_mat)
         conf_mats.append(conf_mat)
@@ -126,13 +100,13 @@ def main():
     # mean_score = sum(f1_scores) / len(f1_scores)
 
     # print(conf_mat_sum)
-    
+
 
     plot_confusion_matrix(conf_mat_sum, classes, normalize=True)
     plt.show()
 
 
-def train_model(train_dataset, test_dataset, train_sampler):
+def train_model(train_dataset, test_dataset, train_sampler, save_model=False):
     train_loader = DataLoader(
         train_dataset, batch_size=batch_size, sampler=train_sampler
     )
@@ -173,11 +147,20 @@ def train_model(train_dataset, test_dataset, train_sampler):
                     f"Epoch {epoch+1} / {num_epochs}, step {i+1}/{n_total_steps}, loss = {loss.item():.4f}"
                 )
 
+    ################
+    #
+    # Evaluation Part
+    #
+    ################
+
+    # Test the model
+    model.eval()
+    predlist = []
+    lbllist = []
+    acc = 0.0
     with torch.no_grad():
         n_correct = 0
         n_samples = 0
-        predlist = []
-        lbllist = []
         for images, labels in test_loader:
             images = images.to(device)
             labels = labels.to(device)
@@ -195,7 +178,16 @@ def train_model(train_dataset, test_dataset, train_sampler):
         # print(f1_score(np.concatenate(lbllist), np.concatenate(predlist), average='macro'))
         # print(f1_score(np.concatenate(lbllist), np.concatenate(predlist), average=None))
 
-        return confusion_matrix(np.concatenate(lbllist), np.concatenate(predlist)), acc
+    # Save model if specified
+    if save_model:
+        folder: Path = Path("models").joinpath(datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+        Path.mkdir(folder, parents=True, exist_ok=True)
+        torch.save(model.state_dict(), f"{folder}/model.pt")
+        with open(f"{folder}/hyperparams.txt", "w") as file:
+            file.write(f"learning_rate = {learning_rate}\nnum_epochs = {num_epochs}\nbatch_size = {batch_size}\n")
+            file.write(str(composed_transforms.transforms))
+
+    return confusion_matrix(np.concatenate(lbllist), np.concatenate(predlist)), acc
 
 
 def f1_scores_from_conf_mat(cm):

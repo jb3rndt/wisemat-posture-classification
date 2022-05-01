@@ -1,3 +1,4 @@
+from typing import Any, Callable, Tuple
 import torch
 import cv2
 import numpy as np
@@ -21,24 +22,68 @@ class Blur:
 
 
 class Threshold:
-    def __call__(self, sample):
+    def __init__(self, threshold_fn: Callable[[np.ndarray], Any]) -> None:
+        self.threshold_fn = threshold_fn
+
+    def __call__(self, sample: Tuple[np.ndarray, np.ndarray]):
         image, label = sample
-        th, frame_thresh = cv2.threshold(image, np.median(image), 1, cv2.THRESH_TOZERO)
+        th, frame_thresh = cv2.threshold(image, self.threshold_fn(image), 1, cv2.THRESH_TOZERO)
         return frame_thresh, label
 
 
 class Erode:
+    def __init__(self, ksize=(3, 3), iterations=1, ktype=cv2.MORPH_RECT) -> None:
+        self.ksize = ksize
+        self.ktype = ktype
+        self.iterations = iterations
+
     def __call__(self, sample):
         image, label = sample
-        frame_eroded = cv2.erode(image[0], None, iterations=1)
+        kernel = cv2.getStructuringElement(self.ktype, self.ksize)
+        frame_eroded = cv2.erode(image[0], kernel, iterations=self.iterations)
+        return np.array([frame_eroded]), label
+
+
+class Dilate:
+    def __init__(self, ksize=(3, 3), iterations=1, ktype=cv2.MORPH_RECT) -> None:
+        self.ksize = ksize
+        self.ktype = ktype
+        self.iterations = iterations
+
+    def __call__(self, sample):
+        image, label = sample
+        kernel = cv2.getStructuringElement(self.ktype, self.ksize)
+        frame_eroded = cv2.dilate(image[0], kernel, iterations=self.iterations)
         return np.array([frame_eroded]), label
 
 
 class Close:
+    def __init__(self, ksize=(3, 3), iterations=1, ktype=cv2.MORPH_RECT) -> None:
+        self.ksize = ksize
+        self.ktype = ktype
+        self.iterations = iterations
+
     def __call__(self, sample):
         image, label = sample
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-        frame_closed = cv2.morphologyEx(image[0], cv2.MORPH_CLOSE, kernel)
+        kernel = cv2.getStructuringElement(self.ktype, self.ksize)
+        frame_closed = cv2.morphologyEx(
+            image[0], cv2.MORPH_CLOSE, kernel, iterations=self.iterations
+        )
+        return np.array([frame_closed]), label
+
+
+class Open:
+    def __init__(self, ksize=(3, 3), iterations=1, ktype=cv2.MORPH_RECT) -> None:
+        self.ksize = ksize
+        self.ktype = ktype
+        self.iterations = iterations
+
+    def __call__(self, sample):
+        image, label = sample
+        kernel = cv2.getStructuringElement(self.ktype, self.ksize)
+        frame_closed = cv2.morphologyEx(
+            image[0], cv2.MORPH_OPEN, kernel, iterations=self.iterations
+        )
         return np.array([frame_closed]), label
 
 

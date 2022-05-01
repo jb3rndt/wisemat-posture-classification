@@ -2,3 +2,5 @@ venv
 *.pyc
 .vscode
 *.docx
+SLP
+.ipynb_checkpoints
