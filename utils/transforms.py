@@ -11,6 +11,12 @@ class ToTensor:
         return torch.from_numpy(image), label
 
 
+class Center:
+    def __call__(self, sample):
+        image, label = sample
+        return image - np.mean(image), label
+
+
 class Blur:
     def __init__(self, ksize) -> None:
         self.ksize = ksize
@@ -22,12 +28,14 @@ class Blur:
 
 
 class Threshold:
-    def __init__(self, threshold_fn: Callable[[np.ndarray], Any]) -> None:
+    def __init__(self, threshold_fn: Callable[[np.ndarray], float]) -> None:
         self.threshold_fn = threshold_fn
 
     def __call__(self, sample: Tuple[np.ndarray, np.ndarray]):
         image, label = sample
-        th, frame_thresh = cv2.threshold(image, self.threshold_fn(image), 1, cv2.THRESH_TOZERO)
+        th, frame_thresh = cv2.threshold(
+            image, self.threshold_fn(image), 1, cv2.THRESH_TOZERO
+        )
         return frame_thresh, label
 
 
@@ -98,6 +106,19 @@ class Resize:
             image[0], self.size, interpolation=self.interpolation
         )
         return np.array([frame_resized]), label
+
+
+def zca(data, epsilon=1e-5):
+    X = data[:1500]
+    X = X / (np.max(X) - np.min(X))
+    X = X - np.mean(X, axis=0)
+    # X = X / np.sqrt((X ** 2).sum(axis=1))[:,None]
+    cov = np.cov(X, rowvar=False)
+    U, S, _ = np.linalg.svd(cov)
+    zca_matrix = np.dot(np.dot(U, np.diag(1.0 / np.sqrt(S + epsilon))), U.T)
+    X_ZCA = np.dot(zca_matrix, X.T).T
+    X_ZCA = (X_ZCA - X_ZCA.min()) / (X_ZCA.max() - X_ZCA.min())
+    return X_ZCA.reshape((len(X), 1, 64, 32))
 
 
 class Normalize:
