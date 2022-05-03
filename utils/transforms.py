@@ -109,7 +109,9 @@ class Resize:
 
 
 def zca(data, epsilon=1e-5):
-    X = data[:1500]
+    data = data[:1000]
+    data_shape = data.shape
+    X = data.reshape(data_shape[0], -1)
     X = X / (np.max(X) - np.min(X))
     X = X - np.mean(X, axis=0)
     # X = X / np.sqrt((X ** 2).sum(axis=1))[:,None]
@@ -118,7 +120,7 @@ def zca(data, epsilon=1e-5):
     zca_matrix = np.dot(np.dot(U, np.diag(1.0 / np.sqrt(S + epsilon))), U.T)
     X_ZCA = np.dot(zca_matrix, X.T).T
     X_ZCA = (X_ZCA - X_ZCA.min()) / (X_ZCA.max() - X_ZCA.min())
-    return X_ZCA.reshape((len(X), 1, 64, 32))
+    return X_ZCA.reshape(data_shape)
 
 
 class Normalize:

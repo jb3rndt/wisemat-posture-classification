@@ -85,7 +85,7 @@ class PhysionetDataset(Dataset):
                     )
 
                     raw_frames = np.reshape(raw_frames, (-1, 1, 64, 32))
-                    raw_frames = np.flip(raw_frames, (2, 3))
+                    # raw_frames = np.flip(raw_frames, (2, 3))
                     x_tensors.append(raw_frames)
                     y_tensors.append(
                         np.full([raw_frames.shape[0]], self.labels_for_file[file - 1])

@@ -1,3 +1,4 @@
+from typing import List
 from matplotlib import cm
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -7,33 +8,48 @@ import torchvision
 def plot_samples(
     dataset,
     sample_indices,
-    classes,
+    classes = None,
     transform: torchvision.transforms.Compose = torchvision.transforms.Compose([]),
 ):
-    assert len(sample_indices) == len(
+    assert classes is None or len(sample_indices) == len(
         classes
     ), "Number of samples must be equal to number of classes"
-    fig, axs = plt.subplots(1, len(classes), figsize=(20, 4))
+    fig, axs = plt.subplots(1, len(sample_indices), figsize=(20, 4))
     for col_nr, col in enumerate(axs):
         if not sample_indices[col_nr]:
             col.set_xticks([], [])
             col.set_yticks([], [])
             continue
         image, label = transform(dataset[sample_indices[col_nr]])
-        col.imshow(image[0], origin="lower", cmap="gist_stern")
-        col.set_title(classes[label])
+        col.imshow(image[0], cmap="gist_stern")
+        if classes:
+            col.set_title(classes[label])
         col.set_xticks([], [])
         col.set_yticks([], [])
 
     cax = plt.axes([0.1, 0.1, 0.8, 0.075])
     fig.colorbar(cm.ScalarMappable(norm=mpl.colors.Normalize(vmin=-1, vmax=1), cmap="gist_stern"), cax=cax, orientation='horizontal', pad=0.2)
 
-def plot_image(image, title=None, cmap=None, ax=None):
+def plot_image(image, title=None, cmap="gist_stern", ax=None):
+    image = reshape_image(image)
     if not ax:
-        _, ax = plt.subplots(figsize=(10, 10))
-    ax.imshow(image[0], origin="lower", cmap=cmap)
+        _, ax = plt.subplots(figsize=(1.5, 1.5))
+    ax.imshow(image, cmap=cmap)
     ax.set_xticks([])
     ax.set_yticks([])
     if title:
         ax.set_title(title)
     return ax
+
+def reshape_image(image):
+    color_channels = min(image.shape)
+    shape_list = list(image.shape)
+    shape_list.remove(color_channels)
+    new_shape = tuple(shape_list) + (color_channels,)
+    return image.reshape(new_shape)
+
+
+def image_row(*images: List):
+    fig, axs = plt.subplots(1, len(images), figsize=(10, 10))
+    for col, image in zip(axs, images):
+        plot_image(image, ax=col)
