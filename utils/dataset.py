@@ -1,3 +1,4 @@
+from pathlib import Path
 import random
 import numpy as np
 import pandas as pd
@@ -10,23 +11,23 @@ import progressbar
 from utils.transforms import Resize
 
 classes = (
-        "Supine",
-        "Lateral_Right",
-        "Lateral_Left",
-        "KneeChest_Right",
-        "KneeChest_Left",
-        "Supine Bed Incline",
-        "Right Body Roll",
-        "Left Body Roll",
-        "SittingOnEdge",
-        "SittingOnBed",
-        "Prone",
-    )
+    "Supine",
+    "Lateral_Right",
+    "Lateral_Left",
+    "KneeChest_Right",
+    "KneeChest_Left",
+    "Supine Bed Incline",
+    "Right Body Roll",
+    "Left Body Roll",
+    "SittingOnEdge",
+    "SittingOnBed",
+    "Prone",
+)
 
 
 class PhysionetDataset(Dataset):
     labels_for_file = [0, 1, 2, 6, 6, 7, 7, 0, 0, 0, 0, 0, 3, 4, 5, 5, 5]
-    directory = "./data/physionet/"
+    data_folder: Path = Path("data").joinpath("physionet")
     classes2 = (
         "Supine",
         "Right",
@@ -40,8 +41,13 @@ class PhysionetDataset(Dataset):
 
     def __init__(self, transform=None, train=False):
         subjects = range(1, 9) if train else range(9, 14)
-        records_per_subject = range(1, 18)
-        self.x, self.y = self.read_files(subjects, records_per_subject)
+        X, Y = [], []
+        for subject in subjects:
+            data_file, labels_file = self.files_for_subject(subject)
+            X.append(np.load(data_file))
+            Y.append(np.load(labels_file))
+
+        self.x, self.y = np.concatenate(X), np.concatenate(Y)
 
         self.n_samples = self.x.shape[0]
 
@@ -56,46 +62,55 @@ class PhysionetDataset(Dataset):
     def __len__(self):
         return self.n_samples
 
-    def read_files(self, subjects, records_per_subject):
-        x_tensors = []
-        y_tensors = []
+    @classmethod
+    def files_for_subject(cls, subject: int):
+        return cls.data_folder.joinpath(f"data_{subject}.npy"), cls.data_folder.joinpath(f"labels_{subject}.npy")
+
+    @classmethod
+    def reload_data_from_source(cls):
+        subjects = range(1, 14)
+        records_per_subject = range(1, 18)
+        raw_data_folder:Path = Path("data").joinpath("physionet-raw")
         widgets = [
             "Reading Files: ",
             progressbar.Bar(left="[", right="]", marker="-"),
             " ",
-            progressbar.Counter(format="%(value)02d/%(max_value)d"),
-            ", ",
-            progressbar.Variable(
-                "samples", format="Total Samples: {formatted_value}", width=4
-            ),
+            progressbar.Counter(format="%(value)d/%(max_value)d"),
         ]
 
         with progressbar.ProgressBar(
             max_value=len(subjects) * len(records_per_subject), widgets=widgets
         ) as bar:
             for subject in subjects:
+                x, y = [], []
                 for file in records_per_subject:
                     # usecols makes sure that last column is skipped, skiprows is used to select which frame(s) are read
                     raw_frames = np.loadtxt(
-                        f"{self.directory}experiment-i/S{subject}/{file}.txt",
+                        raw_data_folder.joinpath(f"experiment-i/S{subject}/{file}.txt"),
                         delimiter="\t",
                         usecols=([_ for _ in range(2048)]),
                         skiprows=2,
                         dtype=np.float32,
                     )
 
-                    raw_frames = np.reshape(raw_frames, (-1, 1, 64, 32))
-                    # raw_frames = np.flip(raw_frames, (2, 3))
-                    x_tensors.append(raw_frames)
-                    y_tensors.append(
-                        np.full([raw_frames.shape[0]], self.labels_for_file[file - 1])
+                    raw_frames = np.reshape(raw_frames, (-1, 64, 32))
+                    x.append(raw_frames)
+                    y.append(
+                        np.full(
+                            [raw_frames.shape[0]],
+                            cls.labels_for_file[file - 1],
+                        )
                     )
                     bar.update(
                         ((subject - subjects[0]) * len(records_per_subject)) + file,
-                        samples=reduce(lambda count, l: count + len(l), y_tensors, 0),
                     )
+                x = np.concatenate(x, axis=0)
+                y = np.concatenate(y, axis=0)
 
-        return np.concatenate(x_tensors), np.concatenate(y_tensors)
+                cls.data_folder.mkdir(parents=True, exist_ok=True)
+                data_file, labels_file = cls.files_for_subject(subject)
+                np.save(data_file, x)
+                np.save(labels_file, y)
 
 
 class AmbientaDataset(Dataset):
