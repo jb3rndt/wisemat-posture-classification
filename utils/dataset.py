@@ -64,13 +64,15 @@ class PhysionetDataset(Dataset):
 
     @classmethod
     def files_for_subject(cls, subject: int):
-        return cls.data_folder.joinpath(f"data_{subject}.npy"), cls.data_folder.joinpath(f"labels_{subject}.npy")
+        return cls.data_folder.joinpath(
+            f"data_{subject}.npy"
+        ), cls.data_folder.joinpath(f"labels_{subject}.npy")
 
     @classmethod
     def reload_data_from_source(cls):
         subjects = range(1, 14)
         records_per_subject = range(1, 18)
-        raw_data_folder:Path = Path("data").joinpath("physionet-raw")
+        raw_data_folder: Path = Path("data").joinpath("physionet-raw")
         widgets = [
             "Reading Files: ",
             progressbar.Bar(left="[", right="]", marker="-"),
@@ -167,3 +169,82 @@ class AmbientaDataset(Dataset):
 
     def __len__(self):
         return self.n_samples
+
+
+class SLPDataset(Dataset):
+    data_folder: Path = Path("data").joinpath("SLP")
+
+    def __init__(self, transform=None, train=False):
+        data_file, labels_file = self.files()
+        self.x = np.load(data_file)
+        self.y = np.load(labels_file)
+        # print(self.x.shape, self.y.shape)
+        self.x = np.reshape(self.x, (-1, *self.x.shape[2:]))
+        self.y = np.reshape(self.y, (-1, *self.y.shape[2:]))
+        # print(self.x.shape, self.y.shape)
+
+        self.n_samples = self.x.shape[0]
+
+        self.transform = transform
+
+    def __getitem__(self, index):
+        sample = self.x[index], self.y[index]
+        if self.transform:
+            sample = self.transform(sample)
+        return sample
+
+    def __len__(self):
+        return self.n_samples
+
+    @classmethod
+    def files(cls):
+        return cls.data_folder.joinpath(f"data.npy"), cls.data_folder.joinpath(
+            f"labels.npy"
+        )
+
+    @classmethod
+    def reload_data_from_source(cls):
+        subjects = range(1, 103)
+        covers = ["cover1", "cover2", "uncover"]
+        raw_data_folder: Path = Path("data").joinpath("SLP-raw").joinpath("danaLab")
+        widgets = [
+            "Reading Files: ",
+            progressbar.Bar(left="[", right="]", marker="-"),
+            " ",
+            progressbar.Counter(format="%(value)d/%(max_value)d"),
+        ]
+
+        with progressbar.ProgressBar(
+            max_value=len(subjects) * 135, widgets=widgets
+        ) as bar:
+            data = []
+            labels = []  # 0 = supine, 1 = left, 2 = right
+            for subject in subjects:
+                data.append([])
+                labels.append([])
+                for cover in covers:
+                    for pos in range(1, 46):
+                        file_data = np.load(
+                            raw_data_folder.joinpath(f"00{str(subject).zfill(3)}")
+                            .joinpath("PMarray")
+                            .joinpath(cover)
+                            .joinpath(f"0000{str(pos).zfill(2)}.npy")
+                        )
+                        data[subject - 1].append(file_data)
+                        if pos <= 15:
+                            labels[subject - 1].append(0)
+                        elif pos <= 30:
+                            labels[subject - 1].append(1)
+                        else:
+                            labels[subject - 1].append(2)
+                        bar.update(
+                            ((subject - subjects[0]) * 135)
+                            + covers.index(cover) * 45
+                            + pos,
+                        )
+            data = np.asarray(data)
+            labels = np.asarray(labels)
+            cls.data_folder.mkdir(parents=True, exist_ok=True)
+            data_file, labels_file = cls.files()
+            np.save(data_file, data)
+            np.save(labels_file, labels)
