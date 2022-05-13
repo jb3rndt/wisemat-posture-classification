@@ -1,8 +1,9 @@
-from typing import Any, Callable, Tuple
+from typing import Callable, Tuple
 import torch
 import cv2
 import numpy as np
 import torchvision
+from skimage import restoration, filters
 
 
 class ToTensor:
@@ -25,6 +26,13 @@ class Blur:
         image, label = sample
         frame_blur = cv2.GaussianBlur(image[0], self.ksize, cv2.BORDER_DEFAULT)
         return np.array([frame_blur]), label
+
+
+class Laplace:
+    def __call__(self, sample):
+        image, label = sample
+        frame_laplace = cv2.Laplacian(image[0], cv2.CV_32F)
+        return np.array([frame_laplace]), label
 
 
 class Threshold:
@@ -121,6 +129,34 @@ def zca(data, epsilon=1e-5):
     X_ZCA = np.dot(zca_matrix, X.T).T
     X_ZCA = (X_ZCA - X_ZCA.min()) / (X_ZCA.max() - X_ZCA.min())
     return X_ZCA.reshape(data_shape)
+
+
+def roll_ball(image, radius=100, normalized=True):
+    if normalized:
+        kernel = restoration.ellipsoid_kernel(
+            tuple([radius * 2] * image.ndim), radius / 255 * 2
+        )
+        return restoration.rolling_ball(image, kernel=kernel)
+    return restoration.rolling_ball(image, radius=radius)
+
+
+class RollingBall:
+    def __init__(self, radius=100, normalized=True) -> None:
+        self.radius = radius
+        self.normalized = normalized
+
+    def __call__(self, sample):
+        image, label = sample
+        return (
+            image - roll_ball(image, radius=self.radius, normalized=self.normalized),
+            label,
+        )
+
+
+class Sobel:
+    def __call__(self, sample):
+        image, label = sample
+        return filters.sobel(image), label
 
 
 class Normalize:
