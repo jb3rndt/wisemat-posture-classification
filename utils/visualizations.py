@@ -8,7 +8,7 @@ import torchvision
 def plot_samples(
     dataset,
     sample_indices,
-    classes = None,
+    classes=None,
     transform: torchvision.transforms.Compose = torchvision.transforms.Compose([]),
 ):
     assert classes is None or len(sample_indices) == len(
@@ -17,31 +17,35 @@ def plot_samples(
     fig, axs = plt.subplots(1, len(sample_indices), figsize=(20, 4))
     for col_nr, col in enumerate(axs):
         if not sample_indices[col_nr]:
-            col.set_xticks([], [])
-            col.set_yticks([], [])
             continue
         image, label = transform(dataset[sample_indices[col_nr]])
-        col.imshow(image[0], cmap="gist_stern")
-        if classes:
-            col.set_title(classes[label])
-        col.set_xticks([], [])
-        col.set_yticks([], [])
+        plot_image(image, ax=col, title=classes[label])
 
     cax = plt.axes([0.1, 0.1, 0.8, 0.075])
-    fig.colorbar(cm.ScalarMappable(norm=mpl.colors.Normalize(vmin=-1, vmax=1), cmap="gist_stern"), cax=cax, orientation='horizontal', pad=0.2)
+    fig.colorbar(
+        cm.ScalarMappable(
+            norm=mpl.colors.Normalize(vmin=-1, vmax=1), cmap="gist_stern"
+        ),
+        cax=cax,
+        orientation="horizontal",
+        pad=0.2,
+    )
+
 
 def plot_image(image, title=None, cmap="gist_stern", ax=None):
     image = reshape_image(image)
     if not ax:
-        _, ax = plt.subplots(figsize=(1.5, 1.5))
+        _, ax = plt.subplots()
     ax.imshow(image, cmap=cmap)
-    ax.set_xticks([])
-    ax.set_yticks([])
+    ax.axis("off")
     if title:
         ax.set_title(title)
     return ax
 
+
 def reshape_image(image):
+    if len(image.shape) == 2:
+        return image.reshape(image.shape + tuple([1]))
     color_channels = min(image.shape)
     shape_list = list(image.shape)
     shape_list.remove(color_channels)
@@ -49,7 +53,7 @@ def reshape_image(image):
     return image.reshape(new_shape)
 
 
-def image_row(*images: List):
-    fig, axs = plt.subplots(1, len(images), figsize=(10, 10))
+def image_row(*images: List, cmap="gist_stern", figsize=(10, 10)):
+    fig, axs = plt.subplots(1, len(images), figsize=figsize)
     for col, image in zip(axs, images):
-        plot_image(image, ax=col)
+        plot_image(image, ax=col, cmap=cmap)
