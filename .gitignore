@@ -4,3 +4,4 @@ venv
 *.docx
 .ipynb_checkpoints
 data/**
+models/**
