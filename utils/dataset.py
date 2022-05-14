@@ -173,6 +173,7 @@ class AmbientaDataset(Dataset):
 
 class SLPDataset(Dataset):
     data_folder: Path = Path("data").joinpath("SLP")
+    classes = ["Supine", "Left", "Right"]
 
     def __init__(self, transform=None, train=False):
         data_file, labels_file = self.files()
@@ -232,11 +233,11 @@ class SLPDataset(Dataset):
                         )
                         data[subject - 1].append(file_data)
                         if pos <= 15:
-                            labels[subject - 1].append(0)
+                            labels[subject - 1].append(cls.classes.index("Supine"))
                         elif pos <= 30:
-                            labels[subject - 1].append(1)
+                            labels[subject - 1].append(cls.classes.index("Left"))
                         else:
-                            labels[subject - 1].append(2)
+                            labels[subject - 1].append(cls.classes.index("Right"))
                         bar.update(
                             ((subject - subjects[0]) * 135)
                             + covers.index(cover) * 45

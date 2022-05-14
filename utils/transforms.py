@@ -119,7 +119,9 @@ class Resize:
 def zca(data, epsilon=1e-5):
     data = data[:1000]
     data_shape = data.shape
+    print(data_shape)
     X = data.reshape(data_shape[0], -1)
+    print(X.shape)
     X = X / (np.max(X) - np.min(X))
     X = X - np.mean(X, axis=0)
     # X = X / np.sqrt((X ** 2).sum(axis=1))[:,None]

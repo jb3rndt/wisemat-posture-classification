@@ -57,3 +57,10 @@ def image_row(*images: List, cmap="gist_stern", figsize=(10, 10)):
     fig, axs = plt.subplots(1, len(images), figsize=figsize)
     for col, image in zip(axs, images):
         plot_image(image, ax=col, cmap=cmap)
+
+def plot_samples_matrix(samples:List, row_length=10, cmap="gist_stern", figsize=(50, 50)):
+    fig, rows = plt.subplots(len(samples) // row_length, row_length, figsize=figsize)
+    for row_nr, row in enumerate(rows):
+        for col_nr, col in enumerate(row):
+            image, label = samples[row_nr * row_length + col_nr]
+            plot_image(image, title=label, ax=col, cmap=cmap)
