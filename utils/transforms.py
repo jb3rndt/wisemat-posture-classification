@@ -24,15 +24,15 @@ class Blur:
 
     def __call__(self, sample):
         image, label = sample
-        frame_blur = cv2.GaussianBlur(image[0], self.ksize, cv2.BORDER_DEFAULT)
-        return np.array([frame_blur]), label
+        frame_blur = cv2.GaussianBlur(image, self.ksize, cv2.BORDER_DEFAULT)
+        return frame_blur, label
 
 
 class Laplace:
     def __call__(self, sample):
         image, label = sample
-        frame_laplace = cv2.Laplacian(image[0], cv2.CV_32F)
-        return np.array([frame_laplace]), label
+        frame_laplace = cv2.Laplacian(image, cv2.CV_32F)
+        return frame_laplace, label
 
 
 class Threshold:
@@ -56,8 +56,8 @@ class Erode:
     def __call__(self, sample):
         image, label = sample
         kernel = cv2.getStructuringElement(self.ktype, self.ksize)
-        frame_eroded = cv2.erode(image[0], kernel, iterations=self.iterations)
-        return np.array([frame_eroded]), label
+        frame_eroded = cv2.erode(image, kernel, iterations=self.iterations)
+        return frame_eroded, label
 
 
 class Dilate:
@@ -69,8 +69,8 @@ class Dilate:
     def __call__(self, sample):
         image, label = sample
         kernel = cv2.getStructuringElement(self.ktype, self.ksize)
-        frame_eroded = cv2.dilate(image[0], kernel, iterations=self.iterations)
-        return np.array([frame_eroded]), label
+        frame_eroded = cv2.dilate(image, kernel, iterations=self.iterations)
+        return frame_eroded, label
 
 
 class Close:
@@ -83,9 +83,9 @@ class Close:
         image, label = sample
         kernel = cv2.getStructuringElement(self.ktype, self.ksize)
         frame_closed = cv2.morphologyEx(
-            image[0], cv2.MORPH_CLOSE, kernel, iterations=self.iterations
+            image, cv2.MORPH_CLOSE, kernel, iterations=self.iterations
         )
-        return np.array([frame_closed]), label
+        return frame_closed, label
 
 
 class Open:
@@ -98,9 +98,9 @@ class Open:
         image, label = sample
         kernel = cv2.getStructuringElement(self.ktype, self.ksize)
         frame_closed = cv2.morphologyEx(
-            image[0], cv2.MORPH_OPEN, kernel, iterations=self.iterations
+            image, cv2.MORPH_OPEN, kernel, iterations=self.iterations
         )
-        return np.array([frame_closed]), label
+        return frame_closed, label
 
 
 class Resize:
@@ -111,9 +111,9 @@ class Resize:
     def __call__(self, sample):
         image, label = sample
         frame_resized = cv2.resize(
-            image[0], self.size, interpolation=self.interpolation
+            image, self.size, interpolation=self.interpolation
         )
-        return np.array([frame_resized]), label
+        return frame_resized, label
 
 
 def zca(data, epsilon=1e-5):
@@ -181,6 +181,6 @@ class EqualizeHist:
         image, label = sample
         image = image * 255.0
         image = image.astype(np.uint8)
-        image = cv2.equalizeHist(image[0])
+        image = cv2.equalizeHist(image)
         image = image.astype(np.float32) / 255.0
-        return np.array([image]), label
+        return image, label
