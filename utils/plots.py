@@ -4,9 +4,11 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+from utils.dataset import PostureClass
+
 # from https://deeplizard.com/learn/video/0LhiS6yu2qQ
 def plot_confusion_matrix(
-    cm, classes, normalize=False, title="Confusion matrix", cmap=plt.cm.Oranges
+    cm, normalize=False, title="Confusion matrix", cmap=plt.cm.Oranges
 ):
     if normalize:
         cm = cm.astype("float") / cm.sum(axis=1)[:, np.newaxis]
@@ -14,6 +16,7 @@ def plot_confusion_matrix(
     else:
         print("Confusion matrix, without normalization")
 
+    classes = [str(c) for c in PostureClass]
     plt.figure(figsize=(10, 10))
     ax = plt.gca()
     im = ax.imshow(cm, interpolation="nearest", cmap=cmap)

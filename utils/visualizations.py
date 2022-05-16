@@ -38,7 +38,7 @@ def plot_image(image, title=None, cmap="gist_stern", ax=None):
         _, ax = plt.subplots()
     ax.imshow(image, cmap=cmap)
     ax.axis("off")
-    if title:
+    if title is not None:
         ax.set_title(title)
     return ax
 

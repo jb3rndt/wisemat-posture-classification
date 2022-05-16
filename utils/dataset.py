@@ -1,43 +1,23 @@
+from enum import IntEnum
 from pathlib import Path
-import random
+
 import numpy as np
 import pandas as pd
-import cv2
-from functools import reduce
-from sklearn.utils import shuffle
-from torch.utils.data import Dataset
-import matplotlib.pyplot as plt
 import progressbar
-from utils.transforms import Resize
+from torch.utils.data import Dataset
 
-classes = (
-    "Supine",
-    "Lateral_Right",
-    "Lateral_Left",
-    "KneeChest_Right",
-    "KneeChest_Left",
-    "Supine Bed Incline",
-    "Right Body Roll",
-    "Left Body Roll",
-    "SittingOnEdge",
-    "SittingOnBed",
-    "Prone",
-)
+
+class PostureClass(IntEnum):
+    SUPINE = 0
+    LEFT = 1
+    RIGHT = 2
+
+    def __str__(self) -> str:
+        return self.name.capitalize()
 
 
 class PhysionetDataset(Dataset):
-    labels_for_file = [0, 1, 2, 6, 6, 7, 7, 0, 0, 0, 0, 0, 3, 4, 5, 5, 5]
     data_folder: Path = Path("data").joinpath("physionet")
-    classes2 = (
-        "Supine",
-        "Right",
-        "Left",
-        "Right Fetus",
-        "Left Fetus",
-        "Supine Bed Incline",
-        "Right Body Roll",
-        "Left Body Roll",
-    )
 
     def __init__(self, transform=None, train=False):
         subjects = range(1, 9) if train else range(9, 14)
@@ -72,6 +52,27 @@ class PhysionetDataset(Dataset):
     def reload_data_from_source(cls):
         subjects = range(1, 14)
         records_per_subject = range(1, 18)
+        # records_per_subject.remove(5)
+        # records_per_subject.remove(7)
+        labels_for_file = [
+            PostureClass.SUPINE,
+            PostureClass.LEFT,
+            PostureClass.RIGHT,
+            PostureClass.LEFT,
+            PostureClass.LEFT,
+            PostureClass.RIGHT,
+            PostureClass.RIGHT,
+            PostureClass.SUPINE,
+            PostureClass.SUPINE,
+            PostureClass.SUPINE,
+            PostureClass.SUPINE,
+            PostureClass.SUPINE,
+            PostureClass.LEFT,
+            PostureClass.RIGHT,
+            PostureClass.SUPINE,
+            PostureClass.SUPINE,
+            PostureClass.SUPINE,
+        ]
         raw_data_folder: Path = Path("data").joinpath("physionet-raw")
         widgets = [
             "Reading Files: ",
@@ -100,11 +101,11 @@ class PhysionetDataset(Dataset):
                     y.append(
                         np.full(
                             [raw_frames.shape[0]],
-                            cls.labels_for_file[file - 1],
+                            labels_for_file[file - 1],
                         )
                     )
                     bar.update(
-                        ((subject - subjects[0]) * len(records_per_subject)) + file,
+                        ((subject - subjects[0]) * len(records_per_subject)) + labels_for_file.index(file),
                     )
                 x = np.concatenate(x, axis=0)
                 y = np.concatenate(y, axis=0)
@@ -117,7 +118,7 @@ class PhysionetDataset(Dataset):
 
 class AmbientaDataset(Dataset):
     directory = "./data/ambienta/"
-    classes2 = [
+    classes = [
         "Supine",
         "SittingOnEdge",
         "SittingOnBed",
@@ -142,8 +143,8 @@ class AmbientaDataset(Dataset):
             labels = []
             frames_to_remove = []
             for frame_nr, _, label in raw_labels.itertuples():
-                if label in classes:
-                    labels.append(classes.index(label))
+                if label in self.classes:
+                    labels.append(self.classes.index(label))
                 else:
                     frames_to_remove.append(frame_nr)
                     labels.append(-1)
@@ -156,7 +157,6 @@ class AmbientaDataset(Dataset):
 
         self.x = np.concatenate(x_arrays)
         self.y = np.concatenate(y_arrays)
-        # self.x, self.y = shuffle(self.x, self.y, random_state=234950)
         self.n_samples = self.x.shape[0]
 
         self.transform = transform
@@ -173,12 +173,12 @@ class AmbientaDataset(Dataset):
 
 class SLPDataset(Dataset):
     data_folder: Path = Path("data").joinpath("SLP")
-    classes = ["Supine", "Left", "Right"]
 
     def __init__(self, transform=None, train=False):
+        subject_bottom, subject_top = (0, 80) if train else (80, 102)
         data_file, labels_file = self.files()
-        self.x = np.load(data_file)
-        self.y = np.load(labels_file)
+        self.x = np.load(data_file)[subject_bottom:subject_top]
+        self.y = np.load(labels_file)[subject_bottom:subject_top]
         # print(self.x.shape, self.y.shape)
         self.x = np.reshape(self.x, (-1, *self.x.shape[2:]))
         self.y = np.reshape(self.y, (-1, *self.y.shape[2:]))
@@ -233,11 +233,11 @@ class SLPDataset(Dataset):
                         )
                         data[subject - 1].append(file_data)
                         if pos <= 15:
-                            labels[subject - 1].append(cls.classes.index("Supine"))
+                            labels[subject - 1].append(PostureClass.SUPINE)
                         elif pos <= 30:
-                            labels[subject - 1].append(cls.classes.index("Left"))
+                            labels[subject - 1].append(PostureClass.LEFT)
                         else:
-                            labels[subject - 1].append(cls.classes.index("Right"))
+                            labels[subject - 1].append(PostureClass.RIGHT)
                         bar.update(
                             ((subject - subjects[0]) * 135)
                             + covers.index(cover) * 45
