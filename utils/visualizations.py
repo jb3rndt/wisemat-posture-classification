@@ -3,9 +3,10 @@ from matplotlib import cm
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import torchvision
+import utils.dataset as ds
 
 
-def plot_samples(
+def _plot_samples(
     dataset,
     sample_indices,
     classes=None,
@@ -58,9 +59,24 @@ def image_row(*images: List, cmap="gist_stern", figsize=(10, 10)):
     for col, image in zip(axs, images):
         plot_image(image, ax=col, cmap=cmap)
 
-def plot_samples_matrix(samples:List, row_length=10, cmap="gist_stern", figsize=(50, 50)):
-    fig, rows = plt.subplots(len(samples) // row_length, row_length, figsize=figsize)
+
+def plot_samples(
+    samples: List,
+    ncols=None,
+    cmap="gist_stern",
+    figsize=None,
+    label_convert=lambda l: ds.PostureClass(l),
+    transform: torchvision.transforms.Compose = torchvision.transforms.Compose([]),
+):
+    nrows = len(samples) // ncols
+    if ncols is None:
+        ncols = len(samples)
+    if figsize is None:
+        figsize = (ncols * 5, nrows * 10)
+    fig, rows = plt.subplots(nrows, ncols, figsize=figsize)
+    if nrows == 1:
+        rows = [rows]
     for row_nr, row in enumerate(rows):
         for col_nr, col in enumerate(row):
-            image, label = samples[row_nr * row_length + col_nr]
-            plot_image(image, title=label, ax=col, cmap=cmap)
+            image, label = transform(samples[row_nr * ncols + col_nr])
+            plot_image(image, title=label_convert(label), ax=col, cmap=cmap)
