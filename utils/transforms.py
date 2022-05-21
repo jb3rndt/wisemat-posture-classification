@@ -32,7 +32,7 @@ class Laplace:
     def __call__(self, sample):
         image, label = sample
         frame_laplace = cv2.Laplacian(image, cv2.CV_32F)
-        return frame_laplace, label
+        return image+frame_laplace, label # Adding laplace image to the original: https://towardsdatascience.com/image-filters-in-python-26ee938e57d2
 
 
 class Threshold:
@@ -151,6 +151,18 @@ class RollingBall:
             image - roll_ball(image, radius=self.radius, normalized=self.normalized),
             label,
         )
+
+
+class HighPass:
+    def __call__(self, sample):
+        image, label = sample
+        return image - filters.gaussian(image, sigma=1), label
+
+
+class LowPass:
+    def __call__(self, sample):
+        image, label = sample
+        return image - filters.gaussian(image, sigma=1), label
 
 
 class Sobel:
