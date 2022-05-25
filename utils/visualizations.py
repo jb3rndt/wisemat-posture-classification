@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import torchvision
 import utils.dataset as ds
+import cv2
+import numpy as np
 
 
 def _plot_samples(
@@ -37,6 +39,7 @@ def plot_image(image, title=None, cmap="gist_stern", ax=None):
     image = reshape_image(image)
     if not ax:
         _, ax = plt.subplots()
+    # ax.hist(image.ravel(), bins=256)
     ax.imshow(image, cmap=cmap)
     ax.axis("off")
     if title is not None:
@@ -80,3 +83,20 @@ def plot_samples(
         for col_nr, col in enumerate(row):
             image, label = transform(samples[row_nr * ncols + col_nr])
             plot_image(image, title=label_convert(label), ax=col, cmap=cmap)
+
+
+def apply_lines(image, lines, n=1):
+    image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+    lines = lines[:n]
+    for rho, theta in lines:
+        a = np.cos(theta)
+        b = np.sin(theta)
+        x0 = a * rho
+        y0 = b * rho
+        x1 = int(x0 + 1000 * (-b))
+        y1 = int(y0 + 1000 * (a))
+        x2 = int(x0 - 1000 * (-b))
+        y2 = int(y0 - 1000 * (a))
+
+        cv2.line(image, (x1, y1), (x2, y2), (255, 145, 0), 1)
+    return image

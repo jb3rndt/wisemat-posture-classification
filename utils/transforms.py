@@ -3,8 +3,9 @@ import torch
 import cv2
 import math
 import numpy as np
-import torchvision
 from skimage import restoration, filters
+
+from utils.visualizations import apply_lines
 
 
 class ToTensor:
@@ -16,13 +17,37 @@ class ToTensor:
         return "ToTensor"
 
 
-class Center:
+class NormalizeMean:
     def __call__(self, sample):
         image, label = sample
         return image - np.mean(image), label
 
     def __repr__(self):
-        return "Center"
+        return "MeanNormalization"
+
+
+class Standardize:
+    def __call__(self, sample):
+        image, label = sample
+        return image / np.std(image), label
+
+    def __repr__(self):
+        return "Standardization"
+
+
+class NormalizeValues:
+    def __init__(self, vmin=0, vmax=1):
+        assert vmin < vmax, "vmin must be smaller than vmax"
+        self.vmin = vmin
+        self.vmax = vmax
+
+    def __call__(self, sample):
+        image, label = sample
+        image /= np.max(image)
+        return image * (self.vmax - self.vmin) + self.vmin, label
+
+    def __repr__(self):
+        return f"Normalize: {self.vmin} - {self.vmax}"
 
 
 class Blur:
@@ -106,11 +131,17 @@ class Dilate:
 
 
 class Close:
-    def __init__(self, ksize=(3, 3), iterations=1, ktype=cv2.MORPH_RECT, kernel=None) -> None:
+    def __init__(
+        self, ksize=(3, 3), iterations=1, ktype=cv2.MORPH_RECT, kernel=None
+    ) -> None:
         self.ksize = ksize
         self.ktype = ktype
         self.iterations = iterations
-        self.kernel = cv2.getStructuringElement(self.ktype, self.ksize) if kernel is None else kernel
+        self.kernel = (
+            cv2.getStructuringElement(self.ktype, self.ksize)
+            if kernel is None
+            else kernel
+        )
 
     def __call__(self, sample):
         image, label = sample
@@ -142,7 +173,7 @@ class Open:
 
 
 class Resize:
-    def __init__(self, size, interpolation) -> None:
+    def __init__(self, size, interpolation=cv2.INTER_LINEAR) -> None:
         self.size = size
         self.interpolation = interpolation
 
@@ -195,22 +226,50 @@ class RollingBall:
         return f"RollingBall: radius={self.radius}, normalized={self.normalized}"
 
 
+def low_pass(img, rad=60):
+    f = np.fft.fft2(img)
+    fshift = np.fft.fftshift(f)
+    crow, ccol = tuple(d // 2 for d in img.shape)
+    low_pass_filter = np.zeros(fshift.shape)
+    low_pass_filter[crow - rad : crow + rad, ccol - rad : ccol + rad] = 1
+    fshift *= low_pass_filter
+    f_ishift = np.fft.ifftshift(fshift)
+    img_back = np.fft.ifft2(f_ishift)
+    return np.abs(img_back)
+
+
+def high_pass(img, rad=60):
+    f = np.fft.fft2(img)
+    fshift = np.fft.fftshift(f)
+    crow, ccol = tuple(d // 2 for d in img.shape)
+    fshift[crow - rad : crow + rad, ccol - rad : ccol + rad] = 0
+    f_ishift = np.fft.ifftshift(fshift)
+    img_back = np.fft.ifft2(f_ishift)
+    return np.abs(img_back)
+
+
 class HighPass:
+    def __init__(self, rad=60):
+        self.rad = rad
+
     def __call__(self, sample):
         image, label = sample
-        return image - filters.gaussian(image, sigma=1), label
+        return high_pass(image, self.rad), label
 
     def __repr__(self):
-        return "HighPass"
+        return f"HighPass: radius={self.rad}"
 
 
 class LowPass:
+    def __init__(self, rad=60):
+        self.rad = rad
+
     def __call__(self, sample):
         image, label = sample
-        return image - filters.gaussian(image, sigma=1), label
+        return low_pass(image, self.rad), label
 
     def __repr__(self):
-        return "LowPass"
+        return f"LowPass: radius={self.rad}"
 
 
 class Sobel:
@@ -220,24 +279,6 @@ class Sobel:
 
     def __repr__(self):
         return "Sobel"
-
-
-class Normalize:
-    def __call__(self, sample):
-        image, label = sample
-        return image / np.max(image), label
-        mean = np.mean(x, (1, 2))
-        std = np.std(x, (1, 2))
-        # print(mean, std)
-        return (x - x.mean(axis=(0, 1, 2), keepdims=True)) / x.std(
-            axis=(0, 1, 2), keepdims=True
-        )
-        return np.asarray(
-            torchvision.transforms.Normalize(mean, std)(torch.from_numpy(image))
-        )
-
-    def __repr__(self):
-        return "Normalize"
 
 
 class EqualizeHist:
@@ -266,13 +307,19 @@ class Denoise:
 
 def hough_lines(image):
     sobel, __ = Sobel()((image, 0))
-    sobel, __ = Threshold(lambda img: np.median(img[img > 0.0]), type=cv2.THRESH_BINARY)((sobel, 0))
+    sobel, __ = Threshold(
+        lambda img: np.median(img[img > 0.0]), type=cv2.THRESH_BINARY
+    )((sobel, 0))
     sobel = np.uint8(sobel * 255)
     lines = cv2.HoughLines(sobel, 1, np.pi / 180, 10)
     lines = lines[:, 0, :] if lines is not None else np.empty((0, 2))
     return lines, sobel
 
+
 class CloseInHoughDirection:
+    def __init__(self, debug_lines=False):
+        self.debug_lines = debug_lines
+
     def __call__(self, sample):
         image, label = sample
         lines, __ = hough_lines(image)
@@ -280,7 +327,10 @@ class CloseInHoughDirection:
             print("No lines found. Not applying closing.")
             return image, label
         kernel = choose_kernel_ext(math.degrees(lines[0][1]))
-        return Close(kernel=kernel)((image, label))
+        closed, label = Close(kernel=kernel)((image, label))
+        if self.debug_lines:
+            closed = apply_lines(closed, lines)
+        return closed, label
 
     def __repr__(self):
         return "CloseInHoughDirection"
@@ -299,10 +349,12 @@ def is_sw_ne(deg):
         deg >= 225 - 22.5 and deg < 225 + 22.5
     )
 
+
 def is_horizontal(deg):
-    return (deg >=90- 22.5 and deg < 90 + 22.5) or (
+    return (deg >= 90 - 22.5 and deg < 90 + 22.5) or (
         deg >= 270 - 22.5 and deg < 270 + 22.5
     )
+
 
 def is_se_nw(deg):
     return (deg >= 135 - 22.5 and deg < 135 + 22.5) or (
@@ -356,6 +408,7 @@ def choose_kernel_ext(deg):
             dtype=np.uint8,
         )
     raise Exception(f"Unknown degree: {deg}")
+
 
 # Code from https://github.com/m4nv1r/medium_articles/blob/master/Image_Filters_in_Python.ipynb
 def crimmins(data):
