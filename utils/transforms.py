@@ -335,6 +335,15 @@ class CloseInHoughDirection:
     def __repr__(self):
         return "CloseInHoughDirection"
 
+# try all threshold
+class PouyanProcessing:
+    def __call__(self, sample):
+        image, label = sample
+        denoised = filters.median(image)
+        __, binary = cv2.threshold(denoised, 0, 1, cv2.THRESH_BINARY)
+        cv2.floodFill(binary, None, (0, 0), 1)
+        return binary, label
+
 
 def is_vertical(deg):
     return (

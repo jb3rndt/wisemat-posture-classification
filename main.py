@@ -32,13 +32,13 @@ num_classes = len(classes)
 
 composed_transforms = torchvision.transforms.Compose(
     [
-        Resize((26, 64), cv2.INTER_LINEAR),
+        Resize((26, 64)),
         Normalize(),
         EqualizeHist(),
         Blur((5, 5)),
         Erode(),
         # Threshold(),
-        Resize((52, 128), cv2.INTER_LINEAR),
+        Resize((52, 128)),
         ToTensor(),
     ]
 )
