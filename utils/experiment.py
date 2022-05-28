@@ -36,10 +36,7 @@ class Experiment:
 
 @contextmanager
 def timed(name):
-    start_time = time.time()
-    try:
-        yield
-    finally:
+    def passed_time(start_time):
         diff = time.time() - start_time
         time_str = ""
         hours = int(diff // 3600)
@@ -50,4 +47,13 @@ def timed(name):
             time_str += f"{minutes}m "
         seconds = diff % 60
         time_str += f"{seconds:.1f}s"
-        print(f"\033[92m{name} took {time_str}\033[0m")
+        return time_str
+
+
+    start_time = time.time()
+    try:
+        yield
+        print(f"\033[92m{name} took {passed_time(start_time)}\033[0m")
+    except Exception as e:
+        print(f"\033[91m{name} failed after {passed_time(start_time)}\033[0m")
+        raise e from None

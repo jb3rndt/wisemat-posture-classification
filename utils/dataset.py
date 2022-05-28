@@ -117,46 +117,27 @@ class PhysionetDataset(Dataset):
 
 
 class AmbientaDataset(Dataset):
-    directory = "./data/ambienta/"
+    data_folder = Path("data").joinpath("ambienta")
     classes = [
         "Supine",
-        "SittingOnEdge",
-        "SittingOnBed",
+        # "SittingOnEdge",
+        # "SittingOnBed",
         "Lateral_Right",
-        "Prone",
+        # "Prone",
         "Lateral_Left",
         "KneeChest_Left",
     ]
 
     def __init__(self, transform=None, train=False):
-        x_arrays = []
-        y_arrays = []
-        subjects = range(3, 4) if train else range(5, 6)
+        X, Y = [], []
+        subjects = range(3, 5) if train else range(5, 6)
         for subject in subjects:
-            raw_frames = np.loadtxt(
-                f"{self.directory}{subject}.gz", delimiter=",", dtype=np.float32
-            )
-            raw_frames = np.reshape(raw_frames, (-1, 1, 64, 26))
+            data_file, labels_file = self.files_for_subject(subject)
+            X.append(np.load(data_file))
+            Y.append(np.load(labels_file))
 
-            raw_labels = pd.read_csv(f"{self.directory}{subject}_labels.csv")
+        self.x, self.y = np.concatenate(X), np.concatenate(Y)
 
-            labels = []
-            frames_to_remove = []
-            for frame_nr, _, label in raw_labels.itertuples():
-                if label in self.classes:
-                    labels.append(self.classes.index(label))
-                else:
-                    frames_to_remove.append(frame_nr)
-                    labels.append(-1)
-
-            raw_frames = np.delete(raw_frames, frames_to_remove, 0)
-            labels = np.delete(labels, frames_to_remove, 0)
-
-            x_arrays.append(raw_frames)
-            y_arrays.append(labels)
-
-        self.x = np.concatenate(x_arrays)
-        self.y = np.concatenate(y_arrays)
         self.n_samples = self.x.shape[0]
 
         self.transform = transform
@@ -169,6 +150,48 @@ class AmbientaDataset(Dataset):
 
     def __len__(self):
         return self.n_samples
+
+    @classmethod
+    def files_for_subject(cls, subject):
+        return cls.data_folder.joinpath(f"data_{subject}.npy"), cls.data_folder.joinpath(
+            f"labels_{subject}.npy"
+        )
+
+    @classmethod
+    def reload_data_from_source(cls):
+        raw_data_folder = Path("data").joinpath("ambienta-raw")
+        subjects = range(3, 6)
+        label_for_class = {
+            "Supine": PostureClass.SUPINE,
+            "Lateral_Right": PostureClass.RIGHT,
+            "Lateral_Left": PostureClass.LEFT,
+            "KneeChest_Right": PostureClass.RIGHT,
+            "KneeChest_Left": PostureClass.LEFT,
+        }
+        for subject in subjects:
+            frames = np.loadtxt(
+                raw_data_folder.joinpath(f"{subject}.gz"), delimiter=",", dtype=np.float32
+            )
+            frames = np.reshape(frames, (-1, 64, 26))
+
+            raw_labels = pd.read_csv(raw_data_folder.joinpath(f"{subject}_labels.csv"))
+
+            labels = []
+            frames_to_remove = []
+            for frame_nr, _, label in raw_labels.itertuples():
+                if label in label_for_class:
+                    labels.append(label_for_class[label])
+                else:
+                    frames_to_remove.append(frame_nr)
+                    labels.append(-1)
+
+            frames = np.delete(frames, frames_to_remove, 0)
+            labels = np.delete(labels, frames_to_remove, 0)
+
+            cls.data_folder.mkdir(parents=True, exist_ok=True)
+            data_file, labels_file = cls.files_for_subject(subject)
+            np.save(data_file, frames)
+            np.save(labels_file, labels)
 
 
 class SLPDataset(Dataset):
