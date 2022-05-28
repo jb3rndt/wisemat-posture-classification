@@ -1,5 +1,7 @@
+from contextlib import contextmanager
 import datetime
 import random
+import time
 from typing import List
 import torchvision
 from torch.utils.tensorboard import SummaryWriter
@@ -15,13 +17,37 @@ class Experiment:
 
     def run(self):
         print(f"Running Experiment >>{self.name}<<")
-        writer = SummaryWriter(f'runs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_{self.name}')
-        train_dataset, test_dataset = read_data(self.transform)
-        # train_dataset = [train_dataset[index] for index in random.sample(range(len(train_dataset)), 100)]
-        # test_dataset = [test_dataset[index] for index in random.sample(range(len(test_dataset)), 100)]
-        model = train(train_dataset, writer)
-        conf_mat = evaluate(model, test_dataset)
+        writer = SummaryWriter(
+            f'runs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_{self.name}'
+        )
+        with timed("Reading data"):
+            train_dataset, test_dataset = read_data(self.transform)
+            # train_dataset = [train_dataset[index] for index in random.sample(range(len(train_dataset)), 100)]
+            # test_dataset = [test_dataset[index] for index in random.sample(range(len(test_dataset)), 100)]
+        with timed("Training"):
+            model = train(train_dataset, writer)
+        with timed("Evaluating"):
+            conf_mat = evaluate(model, test_dataset, writer)
         save_model(model, self.transform, conf_mat)
         plot_confusion_matrix(conf_mat, normalize=True)
         writer.close()
         print(f"\033[92mSuccessfully ran Experiment >>{self.name}<<\033[0m")
+
+
+@contextmanager
+def timed(name):
+    start_time = time.time()
+    try:
+        yield
+    finally:
+        diff = time.time() - start_time
+        time_str = ""
+        hours = int(diff // 3600)
+        if hours > 0:
+            time_str += f"{hours}h "
+        minutes = int(diff // 60 % 60)
+        if minutes > 0:
+            time_str += f"{minutes}m "
+        seconds = diff % 60
+        time_str += f"{seconds:.1f}s"
+        print(f"\033[92m{name} took {time_str}\033[0m")

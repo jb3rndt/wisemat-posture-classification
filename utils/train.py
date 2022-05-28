@@ -6,6 +6,7 @@ import progressbar
 import torch
 import torchvision
 import torch.nn as nn
+import torch.nn.functional as F
 from sklearn.metrics import confusion_matrix
 from torch.utils.data import ConcatDataset, DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -20,7 +21,7 @@ from utils.model import ConvNet
 ################
 
 num_trainings = 1
-num_epochs = 2
+num_epochs = 1
 learning_rate = 0.005
 batch_size = 32
 num_classes = len(PostureClass)
@@ -101,15 +102,17 @@ def train(data, writer=None):
                     writer.add_scalar("train/accuracy", running_correct/10, epoch * n_total_steps + i)
                     running_loss = 0.0
                     running_correct = 0
-
+    writer.close()
     return model
 
 
-def evaluate(model, data):
+def evaluate(model, data, writer):
     data_loader = DataLoader(data, batch_size=batch_size)
     model.eval()
     predlist = []
     lbllist = []
+    pr_labels = []
+    pr_predictions = []
     acc = 0.0
     with torch.no_grad():
         n_correct = 0
@@ -123,10 +126,20 @@ def evaluate(model, data):
 
             lbllist.append(labels.cpu().numpy())
             predlist.append(predictions.cpu().numpy())
+            class_predictions = [F.softmax(output, dim=0) for output in outputs]
+            pr_predictions.append(class_predictions)
+            pr_labels.append(predictions)
             n_samples += labels.size(0)
             n_correct += (predictions == labels).sum().item()
 
         acc = 100.0 * n_correct / n_samples
+    pr_predictions = torch.cat([torch.stack(batch) for batch in pr_predictions])
+    pr_labels = torch.cat(pr_labels)
+    for i, label in enumerate(PostureClass):
+        labels_i = pr_labels == i
+        preds_i = pr_predictions[:, i]
+        writer.add_pr_curve(str(label), labels_i, preds_i, global_step=0)
+    writer.close()
     return confusion_matrix(np.concatenate(lbllist), np.concatenate(predlist))
 
 
