@@ -12,15 +12,12 @@ def plot_confusion_matrix(
 ):
     if normalize:
         cm = cm.astype("float") / cm.sum(axis=1)[:, np.newaxis]
-        print("Normalized confusion matrix")
-    else:
-        print("Confusion matrix, without normalization")
 
     classes = [str(c) for c in PostureClass]
-    plt.figure(figsize=(10, 10))
-    ax = plt.gca()
+    fig = plt.figure(figsize=(10, 10))
+    ax = fig.gca()
     im = ax.imshow(cm, interpolation="nearest", cmap=cmap)
-    # plt.title(title)
+    plt.title(title)
     tick_marks = np.arange(len(classes))
     plt.xticks(tick_marks, classes, rotation=90)
     plt.yticks(tick_marks, classes)
@@ -37,23 +34,24 @@ def plot_confusion_matrix(
         )
 
     plt.ylabel("True label")
-    im.axes.tick_params(color="#CACACA", labelcolor="#CACACA")
-    ax.xaxis.label.set_color("#CACACA")
-    ax.yaxis.label.set_color("#CACACA")
+    # im.axes.tick_params(color="#CACACA", labelcolor="#CACACA")
+    # ax.xaxis.label.set_color("#CACACA")
+    # ax.yaxis.label.set_color("#CACACA")
     plt.xlabel("Predicted label")
 
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.25)
-    norm = mpl.colors.Normalize(vmin=-1, vmax=1)
+    norm = mpl.colors.Normalize(vmin=0, vmax=1)
     cb = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), cax=cax)
-    cb.ax.yaxis.set_tick_params(color="#CACACA")
-    cb.outline.set_edgecolor("#CACACA")
-    plt.setp(plt.getp(cb.ax.axes, "yticklabels"), color="#CACACA")
+    # cb.ax.yaxis.set_tick_params(color="#CACACA")
+    # cb.outline.set_edgecolor("#CACACA")
+    # plt.setp(plt.getp(cb.ax.axes, "yticklabels"), color="#CACACA")
 
-    for spine in im.axes.spines.values():
-        spine.set_edgecolor("#CACACA")
+    # for spine in im.axes.spines.values():
+    #     spine.set_edgecolor("#CACACA")
 
-    plt.tight_layout()
+    fig.tight_layout()
+    return fig
 
 
 def plot_comparing_confusion_matrix(
@@ -62,9 +60,6 @@ def plot_comparing_confusion_matrix(
     if normalize:
         base_cm = base_cm.astype("float") / base_cm.sum(axis=1)[:, np.newaxis]
         compare_cm = compare_cm.astype("float") / compare_cm.sum(axis=1)[:, np.newaxis]
-        print("Normalized confusion matrix")
-    else:
-        print("Confusion matrix, without normalization")
 
     cm = compare_cm - base_cm
     for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):

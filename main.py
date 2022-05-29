@@ -83,15 +83,11 @@ def main():
     )
 
     conf_mat_sum = np.zeros((11, 11))
-    conf_mats = []
-    finished = 2
     for i in range(num_trainings):
         conf_mat, acc = train_model(train_dataset, test_dataset, train_sampler, save_model=True)
         print(f"Accuracy of {i+1}. Network: {acc:.4f}")
         print(conf_mat)
-        conf_mats.append(conf_mat)
         conf_mat_sum += conf_mat
-        finished += 1
 
         with open(f'benchmarks/test.npy', 'wb') as f:
             np.save(f, conf_mat)
