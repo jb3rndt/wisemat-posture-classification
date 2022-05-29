@@ -16,8 +16,8 @@ from utils.model import ConvNet
 #
 ################
 
-num_trainings = 2
-num_epochs = 2
+num_trainings = 5
+num_epochs = 10
 learning_rate = 0.005
 batch_size = 32
 num_classes = len(PostureClass)
@@ -80,7 +80,7 @@ def train(data):
                 loss_evolution = np.append(loss_evolution, loss.item())
                 accuracy_evolution = np.append(accuracy_evolution, (predictions == labels).sum().item() / labels.size(0))
 
-                if i%100 == 0:
+                if i%10 == 0:
                     loss_char = f"\033[92m↘ {loss.item():.4f}\033[0m" if loss.item() < prev_loss else f"\033[91m↗ {loss.item():.4f}\033[0m"
                     bar.update(epoch * n_total_steps + i, loss=loss_char, epoch=f"{epoch+1}/{num_epochs}")
                     prev_loss = loss.item()
