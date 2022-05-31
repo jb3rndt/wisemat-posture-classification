@@ -43,11 +43,11 @@ def write_scalars(writer, tag, values, sample_rate):
         writer.add_scalar(tag, value, (sample_rate * (n_split - 1)) + len(sub_values))
 
 
-def save_model(model, transform, conf_mat):
+def save_model(model, transform, conf_mat, run_name):
     folder: Path = (
         Path("models")
         .joinpath("autosave")
-        .joinpath(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
+        .joinpath(run_name)
     )
     Path.mkdir(folder, parents=True, exist_ok=True)
     torch.save(model.state_dict(), folder.joinpath("model.pt"))

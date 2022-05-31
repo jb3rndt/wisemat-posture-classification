@@ -50,14 +50,28 @@ class NormalizeValues:
         return f"Normalize: {self.vmin} - {self.vmax}"
 
 
+class EqualizeHist:
+    def __call__(self, sample):
+        image, label = sample
+        image = image * 255.0
+        image = image.astype(np.uint8)
+        image = cv2.equalizeHist(image)
+        image = image.astype(np.float32) / 255.0
+        return image, label
+
+    def __repr__(self):
+        return "EqualizeHist"
+
+
 class Blur:
     def __init__(self, ksize) -> None:
         self.ksize = ksize
 
     def __call__(self, sample):
         image, label = sample
-        frame_blur = cv2.GaussianBlur(image, self.ksize, cv2.BORDER_DEFAULT)
-        return frame_blur, label
+        image = cv2.GaussianBlur(image, self.ksize, cv2.BORDER_DEFAULT).astype(np.float32)
+        image = NormalizeValues()((image, label))[0]
+        return image, label
 
     def __repr__(self):
         return f"GaussianBlur: kernel={self.ksize}"
@@ -254,7 +268,9 @@ class HighPass:
 
     def __call__(self, sample):
         image, label = sample
-        return high_pass(image, self.rad), label
+        image = high_pass(image, self.rad).astype(np.float32)
+        image = NormalizeValues()((image, label))[0]
+        return image, label
 
     def __repr__(self):
         return f"HighPass: radius={self.rad}"
@@ -279,19 +295,6 @@ class Sobel:
 
     def __repr__(self):
         return "Sobel"
-
-
-class EqualizeHist:
-    def __call__(self, sample):
-        image, label = sample
-        image = image * 255.0
-        image = image.astype(np.uint8)
-        image = cv2.equalizeHist(image)
-        image = image.astype(np.float32) / 255.0
-        return image, label
-
-    def __repr__(self):
-        return "EqualizeHist"
 
 
 class Denoise:

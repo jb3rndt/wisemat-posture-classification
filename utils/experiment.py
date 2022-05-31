@@ -76,7 +76,7 @@ class Experiment:
                     writer.add_pr_curve(str(label), labels_i, preds_i, global_step=i)
                     writer.flush()
 
-        images = list(map(lambda s: s[0], random.sample(train_dataset, 32)))
+        images = list(map(lambda i: train_dataset[i][0], random.sample(range(len(train_dataset)), 32)))
         write_samples_and_model(best_model, torch.stack(images), writer)
 
         total_loss_evolution = (
@@ -103,7 +103,7 @@ class Experiment:
                 "batch_size": batch_size,
             },
         )
-        save_model(best_model, self.transform, total_conf_mat)
+        save_model(best_model, self.transform, total_conf_mat, run_name)
         writer.flush()
         writer.close()
         print(f"\033[92mSuccessfully ran Experiment >>{self.name}<<\033[0m")

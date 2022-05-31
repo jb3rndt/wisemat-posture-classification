@@ -12,7 +12,7 @@ def plot_confusion_matrix(
 ):
     if normalize:
         cm = cm.astype("float") / cm.sum(axis=1)[:, np.newaxis]
-
+    plt.rcParams.update({'font.size': 22})
     classes = [str(c) for c in PostureClass]
     fig = plt.figure(figsize=(10, 10))
     ax = fig.gca()

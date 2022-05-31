@@ -63,10 +63,11 @@ def train(data):
     with progressbar.ProgressBar(max_value=num_epochs*n_total_steps, widgets=widgets) as bar:
         for epoch in range(num_epochs):
             for i, (images, labels) in enumerate(data_loader):
+                images = images.float()
                 labels = labels.long()
                 images = images.to(device)
                 labels = labels.to(device)
-
+                
                 outputs = model(
                     images.unsqueeze(1)
                 )  # Bring grayscale images from usual format (64x32) to a format with additional channel (1x64x32) (https://stackoverflow.com/questions/57237381/runtimeerror-expected-4-dimensional-input-for-4-dimensional-weight-32-3-3-but)
