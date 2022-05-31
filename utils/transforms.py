@@ -3,7 +3,7 @@ import torch
 import cv2
 import math
 import numpy as np
-from skimage import restoration, filters
+from skimage import restoration, filters, transform
 
 from utils.visualizations import apply_lines
 
@@ -35,19 +35,16 @@ class Standardize:
         return "Standardization"
 
 
-class NormalizeValues:
-    def __init__(self, vmin=0, vmax=1):
-        assert vmin < vmax, "vmin must be smaller than vmax"
-        self.vmin = vmin
-        self.vmax = vmax
-
+class NormalizeMinMax:
     def __call__(self, sample):
         image, label = sample
-        image /= np.max(image)
-        return image * (self.vmax - self.vmin) + self.vmin, label
+        return (
+            cv2.normalize(image, None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F),
+            label,
+        )
 
     def __repr__(self):
-        return f"Normalize: {self.vmin} - {self.vmax}"
+        return f"NormalizeMinMax"
 
 
 class EqualizeHist:
@@ -69,8 +66,10 @@ class Blur:
 
     def __call__(self, sample):
         image, label = sample
-        image = cv2.GaussianBlur(image, self.ksize, cv2.BORDER_DEFAULT).astype(np.float32)
-        image = NormalizeValues()((image, label))[0]
+        image = cv2.GaussianBlur(image, self.ksize, cv2.BORDER_DEFAULT).astype(
+            np.float32
+        )
+        image = cv2.normalize(image, None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
         return image, label
 
     def __repr__(self):
@@ -269,7 +268,7 @@ class HighPass:
     def __call__(self, sample):
         image, label = sample
         image = high_pass(image, self.rad).astype(np.float32)
-        image = NormalizeValues()((image, label))[0]
+        image = cv2.normalize(image, None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
         return image, label
 
     def __repr__(self):
@@ -300,9 +299,10 @@ class Sobel:
 class Denoise:
     def __call__(self, sample):
         image, label = sample
-        img = np.uint8(image * 255)
-        img = cv2.fastNlMeansDenoising(img, None, 9, 7, 21)
-        return img, label
+        image = np.uint8(image * 255)
+        image = cv2.fastNlMeansDenoising(image, None, 9, 7, 21)
+        image = cv2.normalize(image, None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+        return image, label
 
     def __repr__(self):
         return "Denoise"
@@ -337,6 +337,19 @@ class CloseInHoughDirection:
 
     def __repr__(self):
         return "CloseInHoughDirection"
+
+
+class WarpPolar:
+    def __init__(self, center=None):
+        self.center = center
+
+    def __call__(self, sample):
+        image, label = sample
+        image = transform.warp_polar(
+            image, center=self.center, output_shape=image.shape
+        )
+        return image, label
+
 
 # try all threshold
 class PouyanProcessing:
