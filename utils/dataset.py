@@ -118,15 +118,6 @@ class PhysionetDataset(Dataset):
 
 class AmbientaDataset(Dataset):
     data_folder = Path("data").joinpath("ambienta")
-    classes = [
-        "Supine",
-        # "SittingOnEdge",
-        # "SittingOnBed",
-        "Lateral_Right",
-        # "Prone",
-        "Lateral_Left",
-        "KneeChest_Left",
-    ]
 
     def __init__(self, transform=None, train=False):
         X, Y = [], []
@@ -143,7 +134,7 @@ class AmbientaDataset(Dataset):
         self.transform = transform
 
     def __getitem__(self, index):
-        sample = self.x[index], self.y[index]
+        sample = np.flipud(self.x[index]), self.y[index]
         if self.transform:
             sample = self.transform(sample)
         return sample
