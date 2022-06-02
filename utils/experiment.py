@@ -15,7 +15,6 @@ from utils.logging_utils import (
     write_scalars,
     write_conf_mat,
     write_transform,
-    save_model,
 )
 
 from utils.plots import plot_confusion_matrix
@@ -40,7 +39,6 @@ class Experiment:
         run_name = (
             f'{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_{self.name}'
         )
-        # TODO: write custom data into same folder as tensorboard data
 
         with timed("Reading data"):
             train_dataset, test_dataset = read_data(
@@ -71,7 +69,9 @@ class Experiment:
                 total_accuracy_evolution.append(accuracy_evolution)
 
             with timed(f"{i+1}. Evaluation"):
-                conf_mat, pr_predictions, pr_labels = evaluate(model, test_dataset, self.hparams)
+                conf_mat, pr_predictions, pr_labels = evaluate(
+                    model, test_dataset, self.hparams
+                )
                 sum_f1_score = sum(f1_scores_from_conf_mat(conf_mat))
                 if sum_f1_score > best_f1_score:
                     best_f1_score = sum_f1_score
@@ -124,14 +124,6 @@ class Experiment:
         pr_predictions,
     ):
         writer = SummaryWriter(f"runs/{run_name}")
-        save_model(
-            model,
-            self.physionet_transform.transforms,
-            self.slp_transform.transforms,
-            conf_mat,
-            run_name,
-            self.hparams,
-        )
         write_samples_and_model(model, torch.stack(samples), writer)
         write_scalars(writer, "train/loss", loss_evolution, 100)
         write_scalars(writer, "train/accuracy", accuracy_evolution, 100)

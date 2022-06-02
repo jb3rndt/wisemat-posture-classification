@@ -6,28 +6,38 @@ import torchvision
 import numpy as np
 from utils.dataset import PostureClass
 from utils.train import HParams
+from torch.utils.tensorboard import SummaryWriter
 
 from utils.plots import plot_confusion_matrix
 
 
 def write_samples_and_model(model, images, writer):
+    torch.save(model.state_dict(), f"{writer.get_logdir()}/model.pt")
     image_grid = torchvision.utils.make_grid(images.unsqueeze(1))
     writer.add_image("samples", image_grid)
     writer.add_graph(model, images.unsqueeze(1))
 
 
-def write_conf_mat(writer, conf_mat, title="Confusion matrix"):
+def write_conf_mat(writer: SummaryWriter, conf_mat, title="Confusion matrix"):
+    np.save(f"{writer.get_logdir()}/confmat.npy", conf_mat)
     fig = plot_confusion_matrix(conf_mat, normalize=True, title=title)
     writer.add_figure("confusion_matrix", fig)
 
 
-def write_transform(writer, tag, transform: List):
+def write_transform(writer: SummaryWriter, tag, transform: List):
+    with open(f"{writer.get_logdir()}/transforms.txt", "a") as file:
+        file.write(f"{tag}\n\t{str(transform)}\n")
     writer.add_text(f"transform/{tag}", " | ".join([str(t) for t in transform]))
 
 
-def write_hyperparams(writer, hyperparams: HParams):
+def write_hyperparams(writer, hparams: HParams):
+    with open(f"{writer.get_logdir()}/hyperparams.txt", "w") as file:
+        file.write(
+            "\n".join([f"{k}: {v}" for k, v in hparams.__dict__().items()] + [""])
+        )
     writer.add_text(
-        "hyperparameters", " | ".join([f"{k}: {v}" for k, v in hyperparams.__dict__().items()])
+        "hyperparameters",
+        " | ".join([f"{k}: {v}" for k, v in hparams.__dict__().items()]),
     )
 
 
@@ -46,22 +56,6 @@ def write_pr_curves(writer, pr_labels, pr_predictions):
             preds_i = pr_preds[:, i]
             writer.add_pr_curve(str(label), labels_i, preds_i, global_step=run)
             writer.flush()
-
-
-def save_model(model, physionet_transforms: List, slp_transforms: List, conf_mat, run_name, hparams: HParams):
-    folder: Path = (
-        Path("models")
-        .joinpath("autosave")
-        .joinpath(run_name)
-    )
-    Path.mkdir(folder, parents=True, exist_ok=True)
-    torch.save(model.state_dict(), folder.joinpath("model.pt"))
-    with open(folder.joinpath("hyperparams.txt"), "w") as file:
-        file.write("\n".join([f"{k}: {v}" for k, v in hparams.__dict__().items()] + [""]))
-    with open(folder.joinpath("transforms.txt"), "w") as file:
-        file.write(f"physionet\n\t{str(physionet_transforms)}\n\n")
-        file.write(f"slp\n\t{str(slp_transforms)}\n")
-    np.save(folder.joinpath("confmat.npy"), conf_mat)
 
 
 def f1_scores_from_conf_mat(cm):
