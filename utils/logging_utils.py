@@ -4,14 +4,10 @@ from typing import List
 import torch
 import torchvision
 import numpy as np
+from utils.dataset import PostureClass
+from utils.train import HParams
 
 from utils.plots import plot_confusion_matrix
-from utils.train import (
-    num_epochs,
-    batch_size,
-    learning_rate,
-    num_trainings,
-)
 
 
 def write_samples_and_model(model, images, writer):
@@ -25,13 +21,13 @@ def write_conf_mat(writer, conf_mat, title="Confusion matrix"):
     writer.add_figure("confusion_matrix", fig)
 
 
-def write_transform(writer, transform: List):
-    writer.add_text("transform", " | ".join([str(t) for t in transform]))
+def write_transform(writer, tag, transform: List):
+    writer.add_text(f"transform/{tag}", " | ".join([str(t) for t in transform]))
 
 
-def write_hyperparams(writer, hyperparams):
+def write_hyperparams(writer, hyperparams: HParams):
     writer.add_text(
-        "hyperparameters", " | ".join([f"{k}: {v}" for k, v in hyperparams.items()])
+        "hyperparameters", " | ".join([f"{k}: {v}" for k, v in hyperparams.__dict__().items()])
     )
 
 
@@ -43,7 +39,16 @@ def write_scalars(writer, tag, values, sample_rate):
         writer.add_scalar(tag, value, (sample_rate * (n_split - 1)) + len(sub_values))
 
 
-def save_model(model, transform, conf_mat, run_name):
+def write_pr_curves(writer, pr_labels, pr_predictions):
+    for run, (pr_lbls, pr_preds) in enumerate(zip(pr_labels, pr_predictions)):
+        for i, label in enumerate(PostureClass):
+            labels_i = pr_lbls == i
+            preds_i = pr_preds[:, i]
+            writer.add_pr_curve(str(label), labels_i, preds_i, global_step=run)
+            writer.flush()
+
+
+def save_model(model, physionet_transforms: List, slp_transforms: List, conf_mat, run_name, hparams: HParams):
     folder: Path = (
         Path("models")
         .joinpath("autosave")
@@ -52,11 +57,10 @@ def save_model(model, transform, conf_mat, run_name):
     Path.mkdir(folder, parents=True, exist_ok=True)
     torch.save(model.state_dict(), folder.joinpath("model.pt"))
     with open(folder.joinpath("hyperparams.txt"), "w") as file:
-        file.write(f"learning_rate = {learning_rate}\n")
-        file.write(f"num_epochs = {num_epochs}\n")
-        file.write(f"batch_size = {batch_size}\n")
-        file.write(f"num_trainings = {num_trainings}\n")
-        file.write(f"{str(transform.transforms)}\n")
+        file.write("\n".join([f"{k}: {v}" for k, v in hparams.__dict__().items()] + [""]))
+    with open(folder.joinpath("transforms.txt"), "w") as file:
+        file.write(f"physionet\n\t{str(physionet_transforms)}\n\n")
+        file.write(f"slp\n\t{str(slp_transforms)}\n")
     np.save(folder.joinpath("confmat.npy"), conf_mat)
 
 

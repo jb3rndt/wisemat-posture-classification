@@ -16,33 +16,50 @@ from utils.model import ConvNet
 #
 ################
 
-num_trainings = 5
-num_epochs = 10
-learning_rate = 0.005
-batch_size = 32
+class HParams:
+    def __init__(
+        self,
+        learning_rate: float = 0.005,
+        num_epochs: int = 10,
+        batch_size: int = 32,
+        num_trainings: int = 5,
+    ):
+        self.learning_rate = learning_rate
+        self.num_epochs = num_epochs
+        self.batch_size = batch_size
+        self.num_trainings = num_trainings
+
+    def __dict__(self):
+        return {
+            "num_trainings": self.num_trainings,
+            "num_epochs": self.num_epochs,
+            "learning_rate": self.learning_rate,
+            "batch_size": self.batch_size,
+        }
+
 num_classes = len(PostureClass)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def read_data(transform):
+def read_data(physionet_transform, slp_transform):
     train_dataset = ConcatDataset(
         [
-            PhysionetDataset(transform, train=True),
-            SLPDataset(transform, train=True),
+            PhysionetDataset(physionet_transform, train=True),
+            SLPDataset(slp_transform, train=True),
         ]
     )
 
-    test_dataset = AmbientaDataset(transform, train=True)
+    test_dataset = AmbientaDataset(physionet_transform, train=True)
     return train_dataset, test_dataset
 
 
-def train(data):
-    data_loader = DataLoader(data, batch_size=batch_size, shuffle=True)
+def train(data, hparams: HParams):
+    data_loader = DataLoader(data, batch_size=hparams.batch_size, shuffle=True)
 
     model = ConvNet(num_classes).to(device)
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.SGD(model.parameters(), lr=hparams.learning_rate)
 
     n_total_steps = len(data_loader)
     prev_loss = 100
@@ -60,14 +77,14 @@ def train(data):
 
     loss_evolution = np.array([])
     accuracy_evolution = np.array([])
-    with progressbar.ProgressBar(max_value=num_epochs*n_total_steps, widgets=widgets) as bar:
-        for epoch in range(num_epochs):
+    with progressbar.ProgressBar(max_value=hparams.num_epochs*n_total_steps, widgets=widgets) as bar:
+        for epoch in range(hparams.num_epochs):
             for i, (images, labels) in enumerate(data_loader):
                 images = images.float()
                 labels = labels.long()
                 images = images.to(device)
                 labels = labels.to(device)
-                
+
                 outputs = model(
                     images.unsqueeze(1)
                 )  # Bring grayscale images from usual format (64x32) to a format with additional channel (1x64x32) (https://stackoverflow.com/questions/57237381/runtimeerror-expected-4-dimensional-input-for-4-dimensional-weight-32-3-3-but)
@@ -83,14 +100,14 @@ def train(data):
 
                 if i%10 == 0:
                     loss_char = f"\033[92m↘ {loss.item():.4f}\033[0m" if loss.item() < prev_loss else f"\033[91m↗ {loss.item():.4f}\033[0m"
-                    bar.update(epoch * n_total_steps + i, loss=loss_char, epoch=f"{epoch+1}/{num_epochs}")
+                    bar.update(epoch * n_total_steps + i, loss=loss_char, epoch=f"{epoch+1}/{hparams.num_epochs}")
                     prev_loss = loss.item()
 
     return model, loss_evolution, accuracy_evolution
 
 
-def evaluate(model, data, writer):
-    data_loader = DataLoader(data, batch_size=batch_size)
+def evaluate(model, data, hparams: HParams):
+    data_loader = DataLoader(data, batch_size=hparams.batch_size)
     model.eval()
     predlist = []
     lbllist = []
