@@ -60,6 +60,17 @@ class EqualizeHist:
         return "EqualizeHist"
 
 
+class CLAHE:
+    def __call__(self, sample):
+        image, label = sample
+        image = image * 255.0
+        image = image.astype(np.uint8)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        image = clahe.apply(image)
+        image = image.astype(np.float32) / 255.0
+        return image, label
+
+
 class Blur:
     def __init__(self, ksize) -> None:
         self.ksize = ksize
