@@ -7,6 +7,7 @@ from typing import List, Optional
 import torch
 import torchvision
 from torch.utils.tensorboard import SummaryWriter
+from utils.dataset import PostureClass
 from utils.logging_utils import (
     f1_scores_from_conf_mat,
     write_hyperparams,
@@ -16,6 +17,7 @@ from utils.logging_utils import (
     write_conf_mat,
     write_transform,
 )
+from utils.model import ConvNet
 
 from utils.plots import plot_confusion_matrix
 from utils.train import evaluate, read_data, train, HParams
@@ -33,6 +35,18 @@ class Experiment:
         self.hparams = hparams
         self.physionet_transform = torchvision.transforms.Compose(transform)
         self.slp_transform = torchvision.transforms.Compose(slp_transform or transform)
+
+    @classmethod
+    def reevaluate(cls, full_name: str, transform: List) -> "Experiment":
+        state_dict = torch.load(f"runs/{full_name}/model.pt")
+        model = ConvNet(len(PostureClass))
+        model.load_state_dict(state_dict)
+        __, test_dataset = read_data(
+            torchvision.transforms.Compose(transform),
+            torchvision.transforms.Compose(transform),
+        )
+        conf_mat, __, __ = evaluate(model, test_dataset, HParams())
+        plot_confusion_matrix(conf_mat, normalize=True, title=f"Confusion Matrix")
 
     def run(self):
         print(f"Running Experiment >>{self.name}<<")
