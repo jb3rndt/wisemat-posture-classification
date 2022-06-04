@@ -81,8 +81,8 @@ def plot_samples(
         rows = [rows]
     for row_nr, row in enumerate(rows):
         for col_nr, col in enumerate(row):
-            image, label = transform(samples[row_nr * ncols + col_nr])
-            plot_image(image, title=label_convert(label), ax=col, cmap=cmap)
+            image, label = samples[row_nr * ncols + col_nr]
+            plot_image(transform(image), title=label_convert(label), ax=col, cmap=cmap)
 
 
 def apply_lines(image, lines, n=1):

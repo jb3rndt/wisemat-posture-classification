@@ -58,14 +58,14 @@ class Experiment:
             train_dataset, test_dataset = read_data(
                 self.physionet_transform, self.slp_transform
             )
-            train_dataset = [
-                train_dataset[index]
-                for index in random.sample(range(len(train_dataset)), 100)
-            ]
-            test_dataset = [
-                test_dataset[index]
-                for index in random.sample(range(len(test_dataset)), 100)
-            ]
+            # train_dataset = [
+            #     train_dataset[index]
+            #     for index in random.sample(range(len(train_dataset)), 100)
+            # ]
+            # test_dataset = [
+            #     test_dataset[index]
+            #     for index in random.sample(range(len(test_dataset)), 100)
+            # ]
 
         best_f1_score = 0.0
         best_model = None

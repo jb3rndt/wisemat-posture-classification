@@ -1,4 +1,4 @@
-from typing import Callable, Tuple
+from typing import Callable
 import torch
 import cv2
 import math
@@ -9,91 +9,79 @@ from utils.visualizations import apply_lines
 
 
 class ToTensor:
-    def __call__(self, sample):
-        image, label = sample
-        return torch.from_numpy(image), label
+    def __call__(self, image):
+        return torch.from_numpy(image).unsqueeze(0)
 
     def __repr__(self):
         return "ToTensor"
 
 
 class NormalizeMean:
-    def __call__(self, sample):
-        image, label = sample
-        return image - np.mean(image), label
+    def __call__(self, image):
+        return image - np.mean(image)
 
     def __repr__(self):
         return "MeanNormalization"
 
 
 class Standardize:
-    def __call__(self, sample):
-        image, label = sample
-        return image / np.std(image), label
+    def __call__(self, image):
+        return image / np.std(image)
 
     def __repr__(self):
         return "Standardization"
 
 
 class NormalizeMinMax:
-    def __call__(self, sample):
-        image, label = sample
-        return (
-            cv2.normalize(image, None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F),
-            label,
-        )
+    def __call__(self, image):
+        return cv2.normalize(image, None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
 
     def __repr__(self):
         return f"NormalizeMinMax"
 
 
 class EqualizeHist:
-    def __call__(self, sample):
-        image, label = sample
+    def __call__(self, image):
         image = image * 255.0
         image = image.astype(np.uint8)
         image = cv2.equalizeHist(image)
         image = image.astype(np.float32) / 255.0
-        return image, label
+        return image
 
     def __repr__(self):
         return "EqualizeHist"
 
 
 class CLAHE:
-    def __call__(self, sample):
-        image, label = sample
+    def __call__(self, image):
         image = image * 255.0
         image = image.astype(np.uint8)
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
         image = clahe.apply(image)
         image = image.astype(np.float32) / 255.0
-        return image, label
+        return image
 
 
 class Blur:
     def __init__(self, ksize) -> None:
         self.ksize = ksize
 
-    def __call__(self, sample):
-        image, label = sample
+    def __call__(self, image):
         image = cv2.GaussianBlur(image, self.ksize, cv2.BORDER_DEFAULT).astype(
             np.float32
         )
         image = cv2.normalize(image, None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
-        return image, label
+        return image
 
     def __repr__(self):
         return f"GaussianBlur: kernel={self.ksize}"
 
 
 class Laplace:
-    def __call__(self, sample):
-        image, label = sample
+    def __call__(self, image):
         frame_laplace = cv2.Laplacian(image, cv2.CV_32F)
         return (
-            image + frame_laplace,
-            label,
+            image + frame_laplace
         )  # Adding laplace image to the original: https://towardsdatascience.com/image-filters-in-python-26ee938e57d2
 
     def __repr__(self):
@@ -111,12 +99,11 @@ class Threshold:
         self.maxval = maxval
         self.type = type
 
-    def __call__(self, sample: Tuple[np.ndarray, np.ndarray]):
-        image, label = sample
-        th, frame_thresh = cv2.threshold(
+    def __call__(self, image):
+        __, frame_thresh = cv2.threshold(
             image, self.threshold_fn(image), self.maxval, self.type
         )
-        return frame_thresh, label
+        return frame_thresh
 
     def __repr__(self):
         return f"Threshold: maxval={self.maxval}, type={self.type}"
@@ -128,11 +115,10 @@ class Erode:
         self.ktype = ktype
         self.iterations = iterations
 
-    def __call__(self, sample):
-        image, label = sample
+    def __call__(self, image):
         kernel = cv2.getStructuringElement(self.ktype, self.ksize)
         frame_eroded = cv2.erode(image, kernel, iterations=self.iterations)
-        return frame_eroded, label
+        return frame_eroded
 
     def __repr__(self):
         return f"Erode: kernel={self.ksize}, iterations={self.iterations}, kernel_type={self.ktype}"
@@ -144,11 +130,10 @@ class Dilate:
         self.ktype = ktype
         self.iterations = iterations
 
-    def __call__(self, sample):
-        image, label = sample
+    def __call__(self, image):
         kernel = cv2.getStructuringElement(self.ktype, self.ksize)
         frame_eroded = cv2.dilate(image, kernel, iterations=self.iterations)
-        return frame_eroded, label
+        return frame_eroded
 
     def __repr__(self):
         return f"Dilate: kernel={self.ksize}, iterations={self.iterations}, kernel_type={self.ktype}"
@@ -167,12 +152,11 @@ class Close:
             else kernel
         )
 
-    def __call__(self, sample):
-        image, label = sample
+    def __call__(self, image):
         frame_closed = cv2.morphologyEx(
             image, cv2.MORPH_CLOSE, self.kernel, iterations=self.iterations
         )
-        return frame_closed, label
+        return frame_closed
 
     def __repr__(self):
         return f"Close: kernel={self.ksize}, iterations={self.iterations}, kernel_type={self.ktype}"
@@ -184,13 +168,12 @@ class Open:
         self.ktype = ktype
         self.iterations = iterations
 
-    def __call__(self, sample):
-        image, label = sample
+    def __call__(self, image):
         kernel = cv2.getStructuringElement(self.ktype, self.ksize)
         frame_closed = cv2.morphologyEx(
             image, cv2.MORPH_OPEN, kernel, iterations=self.iterations
         )
-        return frame_closed, label
+        return frame_closed
 
     def __repr__(self):
         return f"Open: kernel={self.ksize}, iterations={self.iterations}, kernel_type={self.ktype}"
@@ -201,10 +184,9 @@ class Resize:
         self.size = size
         self.interpolation = interpolation
 
-    def __call__(self, sample):
-        image, label = sample
+    def __call__(self, image):
         frame_resized = cv2.resize(image, self.size, interpolation=self.interpolation)
-        return frame_resized, label
+        return frame_resized
 
     def __repr__(self):
         return f"Resize: size={self.size}, interpolation={self.interpolation}"
@@ -239,12 +221,8 @@ class RollingBall:
         self.radius = radius
         self.normalized = normalized
 
-    def __call__(self, sample):
-        image, label = sample
-        return (
-            image - roll_ball(image, radius=self.radius, normalized=self.normalized),
-            label,
-        )
+    def __call__(self, image):
+        return image - roll_ball(image, radius=self.radius, normalized=self.normalized)
 
     def __repr__(self):
         return f"RollingBall: radius={self.radius}, normalized={self.normalized}"
@@ -276,11 +254,10 @@ class HighPass:
     def __init__(self, rad=60):
         self.rad = rad
 
-    def __call__(self, sample):
-        image, label = sample
+    def __call__(self, image):
         image = high_pass(image, self.rad).astype(np.float32)
         image = cv2.normalize(image, None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
-        return image, label
+        return image
 
     def __repr__(self):
         return f"HighPass: radius={self.rad}"
@@ -290,30 +267,27 @@ class LowPass:
     def __init__(self, rad=60):
         self.rad = rad
 
-    def __call__(self, sample):
-        image, label = sample
-        return low_pass(image, self.rad), label
+    def __call__(self, image):
+        return low_pass(image, self.rad)
 
     def __repr__(self):
         return f"LowPass: radius={self.rad}"
 
 
 class Sobel:
-    def __call__(self, sample):
-        image, label = sample
-        return filters.sobel(image), label
+    def __call__(self, image):
+        return filters.sobel(image)
 
     def __repr__(self):
         return "Sobel"
 
 
 class Denoise:
-    def __call__(self, sample):
-        image, label = sample
+    def __call__(self, image):
         image = np.uint8(image * 255)
         image = cv2.fastNlMeansDenoising(image, None, 9, 7, 21)
         image = cv2.normalize(image, None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
-        return image, label
+        return image
 
     def __repr__(self):
         return "Denoise"
@@ -334,8 +308,7 @@ class CloseInHoughDirection:
     def __init__(self, debug_lines=False):
         self.debug_lines = debug_lines
 
-    def __call__(self, sample):
-        image, label = sample
+    def __call__(self, image):
         lines, __ = hough_lines(image)
         if len(lines) == 0:
             print("No lines found. Not applying closing.")
@@ -344,7 +317,7 @@ class CloseInHoughDirection:
         closed, label = Close(kernel=kernel)((image, label))
         if self.debug_lines:
             closed = apply_lines(closed, lines)
-        return closed, label
+        return closed
 
     def __repr__(self):
         return "CloseInHoughDirection"
@@ -354,22 +327,20 @@ class WarpPolar:
     def __init__(self, center=None):
         self.center = center
 
-    def __call__(self, sample):
-        image, label = sample
+    def __call__(self, image):
         image = transform.warp_polar(
             image, center=self.center, output_shape=image.shape
         )
-        return image, label
+        return image
 
 
 # try all threshold
 class PouyanProcessing:
-    def __call__(self, sample):
-        image, label = sample
+    def __call__(self, image):
         denoised = filters.median(image)
         __, binary = cv2.threshold(denoised, 0, 1, cv2.THRESH_BINARY)
         cv2.floodFill(binary, None, (0, 0), 1)
-        return binary, label
+        return binary
 
 
 def is_vertical(deg):
@@ -661,7 +632,6 @@ def crimmins(data):
 
 
 class Crimmins:
-    def __call__(self, sample):
-        image, label = sample
+    def __call__(self, image):
         img = np.uint8(image * 255)
-        return crimmins(img), label
+        return crimmins(img)

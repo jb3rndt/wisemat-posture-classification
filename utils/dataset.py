@@ -34,10 +34,10 @@ class PhysionetDataset(Dataset):
         self.transform = transform
 
     def __getitem__(self, index):
-        sample = self.x[index], self.y[index]
+        image = self.x[index]
         if self.transform:
-            sample = self.transform(sample)
-        return sample
+            image = self.transform(image)
+        return image, self.y[index]
 
     def __len__(self):
         return self.n_samples
@@ -134,10 +134,10 @@ class AmbientaDataset(Dataset):
         self.transform = transform
 
     def __getitem__(self, index):
-        sample = np.flipud(self.x[index]), self.y[index]
+        image = np.flipud(self.x[index])
         if self.transform:
-            sample = self.transform(sample)
-        return sample
+            image = self.transform(image)
+        return image, self.y[index]
 
     def __len__(self):
         return self.n_samples
@@ -203,10 +203,10 @@ class SLPDataset(Dataset):
         self.transform = transform
 
     def __getitem__(self, index):
-        sample = self.x[index], self.y[index]
+        image = self.x[index]
         if self.transform:
-            sample = self.transform(sample)
-        return sample
+            image = self.transform(image)
+        return image, self.y[index]
 
     def __len__(self):
         return self.n_samples
