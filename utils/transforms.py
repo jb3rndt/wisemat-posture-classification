@@ -4,13 +4,13 @@ import cv2
 import math
 import numpy as np
 from skimage import restoration, filters, transform
-
+import torchvision
 from utils.visualizations import apply_lines
 
 
 class ToTensor:
     def __call__(self, image):
-        return torch.from_numpy(image).unsqueeze(0)
+        return torch.from_numpy(image.astype(np.float32))
 
     def __repr__(self):
         return "ToTensor"
@@ -334,7 +334,30 @@ class WarpPolar:
         return image
 
 
-# try all threshold
+class RandomRotate:
+    def __init__(self, range):
+        self.range = range
+
+    def __call__(self, image):
+        image = torch.from_numpy(image).unsqueeze(0)
+        image = torchvision.transforms.RandomRotation(30)(image)
+        image = image.squeeze(0).numpy()
+        return image
+
+
+class RandomZoom:
+    def __init__(self, size=(64, 128)):
+        self.size = size
+
+    def __call__(self, image):
+        image = torch.from_numpy(image).unsqueeze(0)
+        image = torchvision.transforms.RandomResizedCrop(
+            self.size, scale=(0.8, 1), ratio=(1 / 3, 1 / 1.5)
+        )(image)
+        image = image.squeeze(0).numpy()
+        return image
+
+
 class PouyanProcessing:
     def __call__(self, image):
         denoised = filters.median(image)
