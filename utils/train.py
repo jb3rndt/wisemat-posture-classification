@@ -6,8 +6,7 @@ import torch.nn.functional as F
 from sklearn.metrics import confusion_matrix
 from torch.utils.data import ConcatDataset, DataLoader
 
-from utils.dataset import (AmbientaDataset, PhysionetDataset, PostureClass,
-                           SLPDataset)
+from utils.dataset import AmbientaDataset, PhysionetDataset, PostureClass, SLPDataset
 from utils.model import ConvNet
 
 ################
@@ -15,6 +14,7 @@ from utils.model import ConvNet
 # Hyper Parameters
 #
 ################
+
 
 class HParams:
     def __init__(
@@ -37,19 +37,20 @@ class HParams:
             "batch_size": self.batch_size,
         }
 
+
 num_classes = len(PostureClass)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def read_data(physionet_transform, slp_transform):
+def read_data(transform_physionet, transform_slp):
     train_dataset = ConcatDataset(
         [
-            PhysionetDataset(physionet_transform, train=True),
-            SLPDataset(slp_transform, train=True),
+            PhysionetDataset(transform_physionet, train=True),
+            SLPDataset(transform_slp, train=True),
         ]
     )
 
-    test_dataset = AmbientaDataset(physionet_transform, train=True)
+    test_dataset = AmbientaDataset(transform_physionet, train=True)
     return train_dataset, test_dataset
 
 
@@ -70,14 +71,16 @@ def train(data, hparams: HParams):
         " ",
         progressbar.Counter(format="%(value)d/%(max_value)d"),
         " ",
-        progressbar.Variable('epoch', format='Epoch: {formatted_value}', width=3),
+        progressbar.Variable("epoch", format="Epoch: {formatted_value}", width=3),
         " ",
-        progressbar.Variable('loss', format='Loss: {formatted_value}'),
+        progressbar.Variable("loss", format="Loss: {formatted_value}"),
     ]
 
     loss_evolution = np.array([])
     accuracy_evolution = np.array([])
-    with progressbar.ProgressBar(max_value=hparams.num_epochs*n_total_steps, widgets=widgets) as bar:
+    with progressbar.ProgressBar(
+        max_value=hparams.num_epochs * n_total_steps, widgets=widgets
+    ) as bar:
         for epoch in range(hparams.num_epochs):
             for i, (images, labels) in enumerate(data_loader):
                 images = images.float()
@@ -96,18 +99,29 @@ def train(data, hparams: HParams):
 
                 _, predictions = torch.max(outputs, 1)
                 loss_evolution = np.append(loss_evolution, loss.item())
-                accuracy_evolution = np.append(accuracy_evolution, (predictions == labels).sum().item() / labels.size(0))
+                accuracy_evolution = np.append(
+                    accuracy_evolution,
+                    (predictions == labels).sum().item() / labels.size(0),
+                )
 
-                if i%10 == 0:
-                    loss_char = f"\033[92m↘ {loss.item():.4f}\033[0m" if loss.item() < prev_loss else f"\033[91m↗ {loss.item():.4f}\033[0m"
-                    bar.update(epoch * n_total_steps + i, loss=loss_char, epoch=f"{epoch+1}/{hparams.num_epochs}")
+                if i % 10 == 0:
+                    loss_char = (
+                        f"\033[92m↘ {loss.item():.4f}\033[0m"
+                        if loss.item() < prev_loss
+                        else f"\033[91m↗ {loss.item():.4f}\033[0m"
+                    )
+                    bar.update(
+                        epoch * n_total_steps + i,
+                        loss=loss_char,
+                        epoch=f"{epoch+1}/{hparams.num_epochs}",
+                    )
                     prev_loss = loss.item()
 
     return model, loss_evolution, accuracy_evolution
 
 
 def evaluate(model, data, hparams: HParams):
-    data_loader = DataLoader(data, batch_size=hparams.batch_size)
+    data_loader = DataLoader(data, batch_size=hparams.batch_size, shuffle=True)
     model.eval()
     predlist = []
     lbllist = []
@@ -135,4 +149,8 @@ def evaluate(model, data, hparams: HParams):
         acc = 100.0 * n_correct / n_samples
     pr_predictions = torch.cat([torch.stack(batch) for batch in pr_predictions])
     pr_labels = torch.cat(pr_labels)
-    return confusion_matrix(np.concatenate(lbllist), np.concatenate(predlist)), pr_predictions, pr_labels
+    return (
+        confusion_matrix(np.concatenate(lbllist), np.concatenate(predlist)),
+        pr_predictions,
+        pr_labels,
+    )

@@ -1,5 +1,6 @@
 import datetime
 from pathlib import Path
+import pickle
 from typing import List
 import torch
 import torchvision
@@ -9,6 +10,11 @@ from utils.train import HParams
 from torch.utils.tensorboard import SummaryWriter
 
 from utils.plots import plot_confusion_matrix
+
+
+def write_name(name, writer):
+    with open(f"{writer.get_logdir()}/name.txt", "w") as file:
+        file.write(name)
 
 
 def write_samples_and_model(model, images, writer):
@@ -25,8 +31,8 @@ def write_conf_mat(writer: SummaryWriter, conf_mat, title="Confusion matrix"):
 
 
 def write_transform(writer: SummaryWriter, tag, transform: List):
-    with open(f"{writer.get_logdir()}/transforms.txt", "a") as file:
-        file.write(f"{tag}\n\t{str(transform)}\n")
+    with open(f"{writer.get_logdir()}/transform_{tag}.pkl", "wb") as file:
+        pickle.dump(transform, file)
     writer.add_text(f"transform/{tag}", " | ".join([str(t) for t in transform]))
 
 

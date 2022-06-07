@@ -294,10 +294,10 @@ class Denoise:
 
 
 def hough_lines(image):
-    sobel, __ = Sobel()((image, 0))
-    sobel, __ = Threshold(
+    sobel = Sobel()(image)
+    sobel = Threshold(
         lambda img: np.median(img[img > 0.0]), type=cv2.THRESH_BINARY
-    )((sobel, 0))
+    )(sobel)
     sobel = np.uint8(sobel * 255)
     lines = cv2.HoughLines(sobel, 1, np.pi / 180, 10)
     lines = lines[:, 0, :] if lines is not None else np.empty((0, 2))
@@ -312,9 +312,9 @@ class CloseInHoughDirection:
         lines, __ = hough_lines(image)
         if len(lines) == 0:
             print("No lines found. Not applying closing.")
-            return image, label
+            return image
         kernel = choose_kernel_ext(math.degrees(lines[0][1]))
-        closed, label = Close(kernel=kernel)((image, label))
+        closed = Close(kernel=kernel)(image)
         if self.debug_lines:
             closed = apply_lines(closed, lines)
         return closed
@@ -356,6 +356,10 @@ class RandomZoom:
         )(image)
         image = image.squeeze(0).numpy()
         return image
+
+
+def median_larger_zero(img):
+    return np.median(img[img > 0.0])
 
 
 class PouyanProcessing:

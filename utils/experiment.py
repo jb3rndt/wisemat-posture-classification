@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 import datetime
 import random
+import pickle
 import numpy as np
 import time
 from typing import List, Optional
@@ -11,6 +12,7 @@ from utils.dataset import PostureClass
 from utils.logging_utils import (
     f1_scores_from_conf_mat,
     write_hyperparams,
+    write_name,
     write_pr_curves,
     write_samples_and_model,
     write_scalars,
@@ -28,25 +30,40 @@ class Experiment:
         self,
         name: str,
         transform: List,
-        slp_transform: Optional[List] = None,
+        transform_slp: Optional[List] = None,
         hparams=HParams(),
     ) -> None:
         self.name = name
         self.hparams = hparams
-        self.physionet_transform = torchvision.transforms.Compose(transform)
-        self.slp_transform = torchvision.transforms.Compose(slp_transform or transform)
+        self.transform_physionet = torchvision.transforms.Compose(transform)
+        self.transform_slp = torchvision.transforms.Compose(transform_slp or transform)
 
     @classmethod
-    def reevaluate(cls, full_name: str, transform: List) -> "Experiment":
-        state_dict = torch.load(f"runs/{full_name}/model.pt")
+    def load(cls, run_name: str) -> "Experiment":
+        with open(f"runs/{run_name}/transform_physionet.pkl", "rb") as f:
+            transform_physionet = pickle.load(f)
+        with open(f"runs/{run_name}/transform_slp.pkl", "rb") as f:
+            transform_slp = pickle.load(f)
+        with open(f"runs/{run_name}/name.txt", "r") as f:
+            name = f.read()
+        return cls(name, transform_physionet, transform_slp)
+
+    @classmethod
+    def reevaluate(cls, run_name: str):
+        exp = cls.load(run_name)
+        state_dict = torch.load(f"runs/{run_name}/model.pt")
         model = ConvNet(len(PostureClass))
         model.load_state_dict(state_dict)
+
         __, test_dataset = read_data(
-            torchvision.transforms.Compose(transform),
-            torchvision.transforms.Compose(transform),
+            exp.transform_physionet,
+            exp.transform_slp,
         )
         conf_mat, __, __ = evaluate(model, test_dataset, HParams())
-        plot_confusion_matrix(conf_mat, normalize=True, title=f"Confusion Matrix")
+        plot_confusion_matrix(conf_mat, normalize=True, title=f"Confusion Matrix of {exp.name}")
+        # writer = SummaryWriter(f"runs/{run_name}")
+        # write_conf_mat(writer, conf_mat, title=f"Confusion Matrix of {exp.name}")
+
 
     def run(self):
         print(f"Running Experiment >>{self.name}<<")
@@ -56,15 +73,15 @@ class Experiment:
 
         with timed("Reading data"):
             train_dataset, test_dataset = read_data(
-                self.physionet_transform, self.slp_transform
+                self.transform_physionet, self.transform_slp
             )
             # train_dataset = [
             #     train_dataset[index]
-            #     for index in random.sample(range(len(train_dataset)), 100)
+            #     for index in random.sample(range(len(train_dataset)), 10)
             # ]
             # test_dataset = [
             #     test_dataset[index]
-            #     for index in random.sample(range(len(test_dataset)), 100)
+            #     for index in random.sample(range(len(test_dataset)), 10)
             # ]
 
         best_f1_score = 0.0
@@ -97,7 +114,7 @@ class Experiment:
         images = list(
             map(
                 lambda i: train_dataset[i][0],
-                random.sample(range(len(train_dataset)), 32),
+                random.sample(range(len(train_dataset)), min(len(train_dataset), 32)),
             )
         )
 
@@ -138,12 +155,13 @@ class Experiment:
         pr_predictions,
     ):
         writer = SummaryWriter(f"runs/{run_name}")
+        write_name(self.name, writer)
         write_samples_and_model(model, torch.stack(samples), writer)
         write_scalars(writer, "train/loss", loss_evolution, 100)
         write_scalars(writer, "train/accuracy", accuracy_evolution, 100)
         write_conf_mat(writer, conf_mat, title=f"Confusion Matrix of {self.name}")
-        write_transform(writer, "physionet", self.physionet_transform.transforms)
-        write_transform(writer, "slp", self.slp_transform.transforms)
+        write_transform(writer, "physionet", self.transform_physionet.transforms)
+        write_transform(writer, "slp", self.transform_slp.transforms)
         write_hyperparams(writer, self.hparams)
         write_pr_curves(writer, pr_labels, pr_predictions)
         writer.flush()
