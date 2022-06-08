@@ -61,8 +61,8 @@ class Experiment:
         )
         conf_mat, __, __ = evaluate(model, test_dataset, HParams())
         plot_confusion_matrix(conf_mat, normalize=True, title=f"Confusion Matrix of {exp.name}")
-        # writer = SummaryWriter(f"runs/{run_name}")
-        # write_conf_mat(writer, conf_mat, title=f"Confusion Matrix of {exp.name}")
+        writer = SummaryWriter(f"runs/{run_name}")
+        write_conf_mat(writer, conf_mat, title=f"Confusion Matrix of {exp.name}")
 
 
     def run(self):
