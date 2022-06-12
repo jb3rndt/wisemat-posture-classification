@@ -54,10 +54,10 @@ def read_data(transform_physionet, transform_slp):
     return train_dataset, test_dataset
 
 
-def train(data, hparams: HParams):
+def train(model: ConvNet, data, hparams: HParams):
     data_loader = DataLoader(data, batch_size=hparams.batch_size, shuffle=True)
 
-    model = ConvNet(num_classes).to(device)
+    model = model.to(device)
 
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=hparams.learning_rate)
@@ -89,7 +89,7 @@ def train(data, hparams: HParams):
                 labels = labels.to(device)
 
                 outputs = model(
-                    images.unsqueeze(1)
+                    images.unsqueeze(1) if len(images.size()) == 3 else images
                 )  # Bring grayscale images from usual format (64x32) to a format with additional channel (1x64x32) (https://stackoverflow.com/questions/57237381/runtimeerror-expected-4-dimensional-input-for-4-dimensional-weight-32-3-3-but)
                 loss = criterion(outputs, labels)
 
@@ -117,7 +117,7 @@ def train(data, hparams: HParams):
                     )
                     prev_loss = loss.item()
 
-    return model, loss_evolution, accuracy_evolution
+    return loss_evolution, accuracy_evolution
 
 
 def evaluate(model, data, hparams: HParams):
@@ -134,7 +134,7 @@ def evaluate(model, data, hparams: HParams):
         for images, labels in data_loader:
             images = images.to(device)
             labels = labels.to(device)
-            outputs = model(images.unsqueeze(1))
+            outputs = model(images.unsqueeze(1) if len(images.size()) == 3 else images)
 
             _, predictions = torch.max(outputs, 1)
 

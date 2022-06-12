@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, List
 import torch
 import cv2
 import math
@@ -361,6 +361,16 @@ class RandomZoom:
 def median_larger_zero(img):
     return np.median(img[img > 0.0])
 
+
+class Combine:
+    def __init__(self, transforms: List[List]):
+        self.transforms = transforms
+
+    def __call__(self, image):
+        channels = []
+        for transform in self.transforms:
+            channels.append(torchvision.transforms.Compose(transform)(image))
+        return np.stack(channels, axis=0)
 
 class PouyanProcessing:
     def __call__(self, image):

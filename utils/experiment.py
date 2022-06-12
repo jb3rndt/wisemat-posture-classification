@@ -60,10 +60,11 @@ class Experiment:
             exp.transform_slp,
         )
         conf_mat, __, __ = evaluate(model, test_dataset, HParams())
-        plot_confusion_matrix(conf_mat, normalize=True, title=f"Confusion Matrix of {exp.name}")
+        plot_confusion_matrix(
+            conf_mat, normalize=True, title=f"Confusion Matrix of {exp.name}"
+        )
         writer = SummaryWriter(f"runs/{run_name}")
         write_conf_mat(writer, conf_mat, title=f"Confusion Matrix of {exp.name}")
-
 
     def run(self):
         print(f"Running Experiment >>{self.name}<<")
@@ -92,9 +93,10 @@ class Experiment:
         total_pr_labels = []
         total_conf_mat = np.zeros((3, 3))
         for i in range(self.hparams.num_trainings):
+            model = ConvNet(len(PostureClass), channels=train_dataset[0][0].shape[0])
             with timed(f"{i+1}. Training"):
-                model, loss_evolution, accuracy_evolution = train(
-                    train_dataset, self.hparams
+                loss_evolution, accuracy_evolution = train(
+                    model, train_dataset, self.hparams
                 )
                 total_loss_evolution.append(loss_evolution)
                 total_accuracy_evolution.append(accuracy_evolution)
