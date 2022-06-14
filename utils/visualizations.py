@@ -36,6 +36,7 @@ def _plot_samples(
 
 
 def plot_image(image, title=None, cmap="gist_stern", ax=None):
+    plt.rcParams.update({'font.size': 20})
     image = reshape_image(image)
     if not ax:
         _, ax = plt.subplots()
@@ -57,10 +58,11 @@ def reshape_image(image):
     return image.reshape(new_shape)
 
 
-def image_row(*images: List, cmap="gist_stern", figsize=(10, 10)):
+def image_row(*images: List, titles=[], cmap="gist_stern", figsize=(10, 10)):
+    titles += [None] * (len(images) - len(titles))
     fig, axs = plt.subplots(1, len(images), figsize=figsize)
-    for col, image in zip(axs, images):
-        plot_image(image, ax=col, cmap=cmap)
+    for i, (col, image) in enumerate(zip(axs, images)):
+        plot_image(image, title=titles[i], ax=col, cmap=cmap)
 
 
 def plot_samples(

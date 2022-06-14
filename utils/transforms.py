@@ -10,6 +10,8 @@ from utils.visualizations import apply_lines
 
 class ToTensor:
     def __call__(self, image):
+        if len(image.shape) == 2:
+            image = np.expand_dims(image, axis=0)
         return torch.from_numpy(image.astype(np.float32))
 
     def __repr__(self):

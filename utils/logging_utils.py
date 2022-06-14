@@ -19,9 +19,14 @@ def write_name(name, writer):
 
 def write_samples_and_model(model, images, writer):
     torch.save(model.state_dict(), f"{writer.get_logdir()}/model.pt")
-    image_grid = torchvision.utils.make_grid(images.unsqueeze(1))
+    if len(images.shape) == 3:
+        image_grid = torchvision.utils.make_grid(images.unsqueeze(1))
+    else:
+        image_grid = torchvision.utils.make_grid(
+            images.reshape(-1, 1, *images.shape[2:])
+        )
     writer.add_image("samples", image_grid)
-    writer.add_graph(model, images.unsqueeze(1))
+    writer.add_graph(model, images.unsqueeze(1) if len(images.shape) == 3 else images)
 
 
 def write_conf_mat(writer: SummaryWriter, conf_mat, title="Confusion matrix"):
