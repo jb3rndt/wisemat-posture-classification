@@ -5,7 +5,7 @@ import math
 import numpy as np
 from skimage import restoration, filters, transform
 import torchvision
-from utils.visualizations import apply_lines
+from utils.plots import apply_lines
 
 
 class ToTensor:
@@ -253,9 +253,9 @@ def low_pass(img, rad=60):
 
 
 # from utils.transforms import *
-# from utils.visualizations import *
+# from utils.plots import *
 # import utils.transforms as tf
-# import utils.visualizations as vi
+# import utils.plots as vi
 # import importlib
 
 # importlib.reload(tf)
@@ -302,10 +302,13 @@ def high_pass(img, rad=60):
     high_pass_filter[
         crow - min(rad // 2, crow) : crow + min(rad // 2, crow),
         ccol - min(rad // 2, ccol) : ccol + min(rad // 2, ccol),
-    ] = 1 - gkern2d[
-        ckrow - min(rad // 2, crow) : ckrow + min(rad // 2, crow),
-        ckcol - min(rad // 2, ccol) : ckcol + min(rad // 2, ccol),
-    ]
+    ] = (
+        1
+        - gkern2d[
+            ckrow - min(rad // 2, crow) : ckrow + min(rad // 2, crow),
+            ckcol - min(rad // 2, ccol) : ckcol + min(rad // 2, ccol),
+        ]
+    )
     fshift *= high_pass_filter
     f_ishift = np.fft.ifftshift(fshift)
     img_back = np.fft.ifft2(f_ishift)

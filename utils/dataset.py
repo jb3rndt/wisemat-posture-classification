@@ -58,17 +58,20 @@ class PhysionetDataset(Dataset):
             PostureClass.SUPINE,
             PostureClass.LEFT,
             PostureClass.RIGHT,
-            PostureClass.LEFT,
-            PostureClass.LEFT,
+            # None,
+            # None,
+            # None,
             PostureClass.RIGHT,
             PostureClass.RIGHT,
-            PostureClass.SUPINE,
-            PostureClass.SUPINE,
-            PostureClass.SUPINE,
-            PostureClass.SUPINE,
-            PostureClass.SUPINE,
             PostureClass.LEFT,
+            PostureClass.LEFT,
+            PostureClass.SUPINE,
+            PostureClass.SUPINE,
+            PostureClass.SUPINE,
+            PostureClass.SUPINE,
+            PostureClass.SUPINE,
             PostureClass.RIGHT,
+            PostureClass.LEFT,
             PostureClass.SUPINE,
             PostureClass.SUPINE,
             PostureClass.SUPINE,
@@ -87,6 +90,8 @@ class PhysionetDataset(Dataset):
             for subject in subjects:
                 x, y = [], []
                 for file in records_per_subject:
+                    if labels_for_file[file - 1] is None:
+                        continue
                     # usecols makes sure that last column is skipped, skiprows is used to select which frame(s) are read
                     raw_frames = np.loadtxt(
                         raw_data_folder.joinpath(f"experiment-i/S{subject}/{file}.txt"),
@@ -105,7 +110,7 @@ class PhysionetDataset(Dataset):
                         )
                     )
                     bar.update(
-                        ((subject - subjects[0]) * len(records_per_subject)) + labels_for_file.index(file),
+                        ((subject - subjects[0]) * len(records_per_subject)) + file,
                     )
                 x = np.concatenate(x, axis=0)
                 y = np.concatenate(y, axis=0)

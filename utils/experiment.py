@@ -63,8 +63,8 @@ class Experiment:
         plot_confusion_matrix(
             conf_mat, normalize=True, title=f"Confusion Matrix of {exp.name}"
         )
-        writer = SummaryWriter(f"runs/{run_name}")
-        write_conf_mat(writer, conf_mat, title=f"Confusion Matrix of {exp.name}")
+        # writer = SummaryWriter(f"runs/{run_name}")
+        # write_conf_mat(writer, conf_mat, title=f"Confusion Matrix of {exp.name}")
 
     def run(self):
         print(f"Running Experiment >>{self.name}<<")
@@ -78,11 +78,11 @@ class Experiment:
             )
             # train_dataset = [
             #     train_dataset[index]
-            #     for index in random.sample(range(len(train_dataset)), 10)
+            #     for index in random.sample(range(len(train_dataset)), 50)
             # ]
             # test_dataset = [
             #     test_dataset[index]
-            #     for index in random.sample(range(len(test_dataset)), 10)
+            #     for index in random.sample(range(len(test_dataset)), 50)
             # ]
 
         best_f1_score = 0.0

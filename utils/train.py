@@ -1,3 +1,4 @@
+from matplotlib import pyplot as plt
 import numpy as np
 import progressbar
 import torch
@@ -8,6 +9,7 @@ from torch.utils.data import ConcatDataset, DataLoader
 
 from utils.dataset import AmbientaDataset, PhysionetDataset, PostureClass, SLPDataset
 from utils.model import ConvNet
+from utils.plots import plot_samples, plot_wrong_predictions
 
 ################
 #
@@ -125,6 +127,7 @@ def evaluate(model, data, hparams: HParams):
     model.eval()
     predlist = []
     lbllist = []
+    imglist = []
     pr_labels = []
     pr_predictions = []
     acc = 0.0
@@ -138,6 +141,7 @@ def evaluate(model, data, hparams: HParams):
 
             _, predictions = torch.max(outputs, 1)
 
+            imglist.append(images.cpu().numpy())
             lbllist.append(labels.cpu().numpy())
             predlist.append(predictions.cpu().numpy())
             class_predictions = [F.softmax(output, dim=0) for output in outputs]
@@ -145,6 +149,9 @@ def evaluate(model, data, hparams: HParams):
             pr_labels.append(predictions)
             n_samples += labels.size(0)
             n_correct += (predictions == labels).sum().item()
+        plot_wrong_predictions(
+            np.concatenate(imglist), np.concatenate(lbllist), np.concatenate(predlist)
+        )
 
         acc = 100.0 * n_correct / n_samples
     pr_predictions = torch.cat([torch.stack(batch) for batch in pr_predictions])
