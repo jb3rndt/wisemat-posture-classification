@@ -7,6 +7,7 @@ import time
 from typing import List, Optional
 import torch
 import torchvision
+import shap
 from torch.utils.tensorboard import SummaryWriter
 from utils.dataset import PostureClass
 from utils.logging_utils import (
@@ -51,20 +52,42 @@ class Experiment:
     @classmethod
     def reevaluate(cls, run_name: str):
         exp = cls.load(run_name)
-        state_dict = torch.load(f"runs/{run_name}/model.pt")
-        model = ConvNet(len(PostureClass))
-        model.load_state_dict(state_dict)
-
         __, test_dataset = read_data(
             exp.transform_physionet,
             exp.transform_slp,
         )
+        state_dict = torch.load(f"runs/{run_name}/model.pt")
+        model = ConvNet(len(PostureClass), test_dataset[0][0].shape[0])
+        model.load_state_dict(state_dict)
+
         conf_mat, __, __ = evaluate(model, test_dataset, HParams())
         plot_confusion_matrix(
             conf_mat, normalize=True, title=f"Confusion Matrix of {exp.name}"
         )
         # writer = SummaryWriter(f"runs/{run_name}")
         # write_conf_mat(writer, conf_mat, title=f"Confusion Matrix of {exp.name}")
+
+    @classmethod
+    def explain(cls, run_name: str):
+        exp = cls.load(run_name)
+        train_dataset, test_dataset = read_data(
+            exp.transform_physionet,
+            exp.transform_slp,
+        )
+        images = [train_dataset[i][0] for i in range(100)]
+        test_images = [test_dataset[i][0] for i in range(10)]
+
+        state_dict = torch.load(f"runs/{run_name}/model.pt")
+        model = ConvNet(len(PostureClass), train_dataset[0][0].shape[0])
+        model.load_state_dict(state_dict)
+
+        e = shap.DeepExplainer(model, [images])
+        shap_values = e.shap_values(test_images)
+        shap_numpy = [np.swapaxes(np.swapaxes(s, 1, -1), 1, 2) for s in shap_values]
+        test_numpy = np.swapaxes(np.swapaxes(test_images.numpy(), 1, -1), 1, 2)
+
+        shap.image_plot(shap_numpy, -test_numpy)
+
 
     def run(self):
         print(f"Running Experiment >>{self.name}<<")
