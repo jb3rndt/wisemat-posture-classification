@@ -235,18 +235,78 @@ def low_pass(img, rad=60):
     fshift = np.fft.fftshift(f)
     crow, ccol = tuple(d // 2 for d in img.shape)
     low_pass_filter = np.zeros(fshift.shape)
-    low_pass_filter[crow - rad : crow + rad, ccol - rad : ccol + rad] = 1
+    gkern1d = cv2.getGaussianKernel(rad, -1)
+    gkern2d = np.outer(gkern1d, gkern1d)
+    gkern2d = cv2.normalize(gkern2d, None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+    ckrow, ckcol = tuple(d // 2 for d in gkern2d.shape)
+    low_pass_filter[
+        crow - min(rad // 2, crow) : crow + min(rad // 2, crow),
+        ccol - min(rad // 2, ccol) : ccol + min(rad // 2, ccol),
+    ] = gkern2d[
+        ckrow - min(rad // 2, crow) : ckrow + min(rad // 2, crow),
+        ckcol - min(rad // 2, ccol) : ckcol + min(rad // 2, ccol),
+    ]
     fshift *= low_pass_filter
     f_ishift = np.fft.ifftshift(fshift)
     img_back = np.fft.ifft2(f_ishift)
     return np.abs(img_back)
 
 
+# from utils.transforms import *
+# from utils.visualizations import *
+# import utils.transforms as tf
+# import utils.visualizations as vi
+# import importlib
+
+# importlib.reload(tf)
+# importlib.reload(vi)
+# from skimage import data, filters
+
+# image = physionet[0][0]  # data.coins()
+# image = np.reshape(image, image.shape[1:])
+# f = np.fft.fft2(image)
+# fshift = np.fft.fftshift(f)
+# magnitude_spectrum = np.log(np.abs(fshift))
+
+# rows, cols = image.shape
+# crow, ccol = int(rows / 2), int(cols / 2)
+# rect_rad = 9
+# keep = 100
+# # fshift[keep:rows-keep] = 0
+# # fshift[:, keep:cols-keep] = 0
+# fshift[crow - rect_rad : crow + rect_rad, ccol - rect_rad : ccol + rect_rad] = 0
+# manip_magnitude_spectrum = np.log(np.abs(fshift))
+# f_ishift = np.fft.ifftshift(fshift)
+# img_back = np.fft.ifft2(f_ishift)
+# img_back = np.abs(img_back)
+
+# image_row(
+#     image,
+#     magnitude_spectrum,
+#     manip_magnitude_spectrum,
+#     img_back,
+#     cmap="gray",
+#     figsize=(20, 20),
+# )
+
+
 def high_pass(img, rad=60):
     f = np.fft.fft2(img)
     fshift = np.fft.fftshift(f)
     crow, ccol = tuple(d // 2 for d in img.shape)
-    fshift[crow - rad : crow + rad, ccol - rad : ccol + rad] = 0
+    high_pass_filter = np.ones(fshift.shape)
+    gkern1d = cv2.getGaussianKernel(rad, -1)
+    gkern2d = np.outer(gkern1d, gkern1d)
+    gkern2d = cv2.normalize(gkern2d, None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+    ckrow, ckcol = tuple(d // 2 for d in gkern2d.shape)
+    high_pass_filter[
+        crow - min(rad // 2, crow) : crow + min(rad // 2, crow),
+        ccol - min(rad // 2, ccol) : ccol + min(rad // 2, ccol),
+    ] = 1 - gkern2d[
+        ckrow - min(rad // 2, crow) : ckrow + min(rad // 2, crow),
+        ckcol - min(rad // 2, ccol) : ckcol + min(rad // 2, ccol),
+    ]
+    fshift *= high_pass_filter
     f_ishift = np.fft.ifftshift(fshift)
     img_back = np.fft.ifft2(f_ishift)
     return np.abs(img_back)
@@ -297,9 +357,9 @@ class Denoise:
 
 def hough_lines(image):
     sobel = Sobel()(image)
-    sobel = Threshold(
-        lambda img: np.median(img[img > 0.0]), type=cv2.THRESH_BINARY
-    )(sobel)
+    sobel = Threshold(lambda img: np.median(img[img > 0.0]), type=cv2.THRESH_BINARY)(
+        sobel
+    )
     sobel = np.uint8(sobel * 255)
     lines = cv2.HoughLines(sobel, 1, np.pi / 180, 10)
     lines = lines[:, 0, :] if lines is not None else np.empty((0, 2))
@@ -373,6 +433,7 @@ class Combine:
         for transform in self.transforms:
             channels.append(torchvision.transforms.Compose(transform)(image))
         return np.stack(channels, axis=0)
+
 
 class PouyanProcessing:
     def __call__(self, image):
