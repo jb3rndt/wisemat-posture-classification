@@ -74,14 +74,22 @@ class Experiment:
             exp.transform_physionet,
             exp.transform_slp,
         )
-        images = [train_dataset[i][0] for i in range(100)]
-        test_images = [test_dataset[i][0] for i in range(10)]
+        images = [
+            train_dataset[index][0]
+            for index in random.sample(range(len(train_dataset)), 1000)
+        ]
+        test_images = [
+            test_dataset[index][0]
+            for index in random.sample(range(len(test_dataset)), 20)
+        ]
+        images, test_images = torch.stack(images), torch.stack(test_images)
+        print(images.size())
 
         state_dict = torch.load(f"runs/{run_name}/model.pt")
         model = ConvNet(len(PostureClass), train_dataset[0][0].shape[0])
         model.load_state_dict(state_dict)
 
-        e = shap.DeepExplainer(model, [images])
+        e = shap.DeepExplainer(model, images)
         shap_values = e.shap_values(test_images)
         shap_numpy = [np.swapaxes(np.swapaxes(s, 1, -1), 1, 2) for s in shap_values]
         test_numpy = np.swapaxes(np.swapaxes(test_images.numpy(), 1, -1), 1, 2)
