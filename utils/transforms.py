@@ -5,7 +5,7 @@ import math
 import numpy as np
 from skimage import restoration, filters, transform
 import torchvision
-from utils.plots import apply_lines
+from utils.plots import apply_lines, plot_image
 
 
 class ToTensor:
@@ -386,6 +386,18 @@ class CloseInHoughDirection:
 
     def __repr__(self):
         return "CloseInHoughDirection"
+
+
+def correct_rotation(image):
+    lines, __ = hough_lines(image)
+    if len(lines) == 0:
+        return image
+    o_deg = math.degrees(lines[0][1])
+    deg = o_deg if o_deg < 90 else o_deg - 180
+    print(o_deg, deg)
+    image = torch.tensor(image).unsqueeze(0)
+    rotated = torchvision.transforms.functional.rotate(image, deg, fill=0)
+    return rotated
 
 
 class WarpPolar:

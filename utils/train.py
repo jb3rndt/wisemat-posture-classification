@@ -90,9 +90,7 @@ def train(model: ConvNet, data, hparams: HParams):
                 images = images.to(device)
                 labels = labels.to(device)
 
-                outputs = model(
-                    images.unsqueeze(1) if len(images.size()) == 3 else images
-                )  # Bring grayscale images from usual format (64x32) to a format with additional channel (1x64x32) (https://stackoverflow.com/questions/57237381/runtimeerror-expected-4-dimensional-input-for-4-dimensional-weight-32-3-3-but)
+                outputs = model(images)
                 loss = criterion(outputs, labels)
 
                 optimizer.zero_grad()
@@ -106,7 +104,7 @@ def train(model: ConvNet, data, hparams: HParams):
                     (predictions == labels).sum().item() / labels.size(0),
                 )
 
-                if i % 10 == 0:
+                if (i + 1) % 10 == 0:
                     loss_char = (
                         f"\033[92m↘ {loss.item():.4f}\033[0m"
                         if loss.item() < prev_loss
@@ -128,36 +126,15 @@ def evaluate(model, data, hparams: HParams):
     predlist = []
     lbllist = []
     imglist = []
-    pr_labels = []
-    pr_predictions = []
-    acc = 0.0
     with torch.no_grad():
-        n_correct = 0
-        n_samples = 0
         for images, labels in data_loader:
             images = images.to(device)
             labels = labels.to(device)
-            outputs = model(images.unsqueeze(1) if len(images.size()) == 3 else images)
+            outputs = model(images)
 
-            _, predictions = torch.max(outputs, 1)
-
-            imglist.append(images.cpu().numpy())
-            lbllist.append(labels.cpu().numpy())
-            predlist.append(predictions.cpu().numpy())
-            class_predictions = [F.softmax(output, dim=0) for output in outputs]
-            pr_predictions.append(class_predictions)
-            pr_labels.append(predictions)
-            n_samples += labels.size(0)
-            n_correct += (predictions == labels).sum().item()
-        plot_wrong_predictions(
-            np.concatenate(imglist), np.concatenate(lbllist), np.concatenate(predlist)
-        )
-
-        acc = 100.0 * n_correct / n_samples
-    pr_predictions = torch.cat([torch.stack(batch) for batch in pr_predictions])
-    pr_labels = torch.cat(pr_labels)
-    return (
-        confusion_matrix(np.concatenate(lbllist), np.concatenate(predlist)),
-        pr_predictions,
-        pr_labels,
-    )
+            imglist.append(images.cpu())
+            lbllist.append(labels.cpu())
+            predlist.append(
+                torch.stack([F.softmax(output, dim=0) for output in outputs]).cpu()
+            )
+    return (torch.cat(imglist), torch.cat(lbllist), torch.cat(predlist))

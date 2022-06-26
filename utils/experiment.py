@@ -5,6 +5,7 @@ import pickle
 import numpy as np
 import time
 from typing import List, Optional
+from sklearn.metrics import confusion_matrix
 import torch
 import torchvision
 import shap
@@ -22,7 +23,7 @@ from utils.logging_utils import (
 )
 from utils.model import ConvNet
 
-from utils.plots import plot_confusion_matrix
+from utils.plots import plot_confusion_matrix, plot_samples, plot_wrong_predictions
 from utils.train import evaluate, read_data, train, HParams
 
 
@@ -60,7 +61,7 @@ class Experiment:
         model = ConvNet(len(PostureClass), test_dataset[0][0].shape[0])
         model.load_state_dict(state_dict)
 
-        conf_mat, __, __ = evaluate(model, test_dataset, HParams())
+        conf_mat, __, __, __ = exp.evaluate(model, test_dataset)
         plot_confusion_matrix(
             conf_mat, normalize=True, title=f"Confusion Matrix of {exp.name}"
         )
@@ -74,20 +75,28 @@ class Experiment:
             exp.transform_physionet,
             exp.transform_slp,
         )
-        images = [
-            train_dataset[index][0]
-            for index in random.sample(range(len(train_dataset)), 1000)
-        ]
-        test_images = [
-            test_dataset[index][0]
-            for index in random.sample(range(len(test_dataset)), 20)
-        ]
-        images, test_images = torch.stack(images), torch.stack(test_images)
-        print(images.size())
-
         state_dict = torch.load(f"runs/{run_name}/model.pt")
         model = ConvNet(len(PostureClass), train_dataset[0][0].shape[0])
         model.load_state_dict(state_dict)
+
+        __, images, labels, predictions = exp.evaluate(model, test_dataset)
+        _, predicted_labels = torch.max(predictions, 1)
+        supine_predictions = (predicted_labels == torch.full(predicted_labels.size(), 0)).nonzero()[:, 0]
+        other_predictions = (predicted_labels != torch.full(predicted_labels.size(), 0)).nonzero()[:, 0]
+        wrong_idx = (predicted_labels != labels.view_as(predicted_labels)).nonzero()[:, 0]
+        correct_idx = (predicted_labels == labels.view_as(predicted_labels)).nonzero()[:, 0]
+        correct_supine = np.intersect1d(correct_idx, supine_predictions)
+        wrongly_as_supine = np.intersect1d(wrong_idx, supine_predictions)
+        wrongly_as_not_supine =  np.intersect1d(wrong_idx, other_predictions)
+
+        plot_samples(
+            list(zip(images[wrongly_as_supine], zip(labels[wrongly_as_supine], predicted_labels[wrongly_as_supine]))),
+            label_convert=lambda x: f"Label: {PostureClass(x[0].item())}\nPrediction: {PostureClass(x[1].item())}",
+        )
+
+        test_images = images[correct_supine][random.sample(range(len(images[correct_supine])), min(len(images[correct_supine]), 10))]
+        images = images[random.sample(range(len(images)), 100)]
+
 
         e = shap.DeepExplainer(model, images)
         shap_values = e.shap_values(test_images)
@@ -95,7 +104,6 @@ class Experiment:
         test_numpy = np.swapaxes(np.swapaxes(test_images.numpy(), 1, -1), 1, 2)
 
         shap.image_plot(shap_numpy, -test_numpy)
-
 
     def run(self):
         print(f"Running Experiment >>{self.name}<<")
@@ -133,8 +141,8 @@ class Experiment:
                 total_accuracy_evolution.append(accuracy_evolution)
 
             with timed(f"{i+1}. Evaluation"):
-                conf_mat, pr_predictions, pr_labels = evaluate(
-                    model, test_dataset, self.hparams
+                conf_mat, __, pr_labels, pr_predictions = self.evaluate(
+                    model, test_dataset
                 )
                 sum_f1_score = sum(f1_scores_from_conf_mat(conf_mat))
                 if sum_f1_score > best_f1_score:
@@ -175,6 +183,13 @@ class Experiment:
             total_pr_predictions,
         )
         print(f"\033[92mSuccessfully ran Experiment >>{self.name}<<\033[0m")
+
+    def evaluate(self, model, test_data):
+        images, labels, predictions = evaluate(model, test_data, self.hparams)
+        _, predicted_labels = torch.max(predictions, 1)
+        conf_mat = confusion_matrix(labels, predicted_labels)
+        # plot_wrong_predictions(images, labels, predicted_labels)
+        return conf_mat, images, labels, predictions
 
     def save(
         self,
