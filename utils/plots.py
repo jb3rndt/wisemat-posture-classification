@@ -41,11 +41,11 @@ def plot_confusion_matrix(
             color="white" if cm[i, j] > thresh else "black",
         )
 
-    plt.ylabel("True label")
+    plt.ylabel("Wahrheit")
     # im.axes.tick_params(color="#CACACA", labelcolor="#CACACA")
     # ax.xaxis.label.set_color("#CACACA")
     # ax.yaxis.label.set_color("#CACACA")
-    plt.xlabel("Predicted label")
+    plt.xlabel("Vorhersage")
 
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.25)
@@ -170,7 +170,7 @@ def plot_image(image, title=None, cmap="gist_stern", ax=None):
     plt.rcParams.update({"font.size": 20})
     image = reshape_image(image)
     if not ax:
-        _, ax = plt.subplots()
+        _, ax = plt.subplots(figsize=(10, 10))
     # ax.hist(image.ravel(), bins=256)
     ax.imshow(image, cmap=cmap)
     ax.axis("off")

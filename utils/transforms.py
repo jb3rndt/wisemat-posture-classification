@@ -417,7 +417,7 @@ class RandomRotate:
 
     def __call__(self, image):
         image = torch.from_numpy(image).unsqueeze(0)
-        image = torchvision.transforms.RandomRotation(30)(image)
+        image = torchvision.transforms.RandomRotation(self.range)(image)
         image = image.squeeze(0).numpy()
         return image
 

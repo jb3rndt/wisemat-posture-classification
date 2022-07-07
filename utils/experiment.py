@@ -90,7 +90,7 @@ class Experiment:
         wrongly_as_not_supine =  np.intersect1d(wrong_idx, other_predictions)
 
         plot_samples(
-            list(zip(images[wrongly_as_supine], zip(labels[wrongly_as_supine], predicted_labels[wrongly_as_supine]))),
+            list(zip(images[wrongly_as_not_supine], zip(labels[wrongly_as_not_supine], predicted_labels[wrongly_as_not_supine]))),
             label_convert=lambda x: f"Label: {PostureClass(x[0].item())}\nPrediction: {PostureClass(x[1].item())}",
         )
 

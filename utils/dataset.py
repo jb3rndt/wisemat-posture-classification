@@ -13,6 +13,12 @@ class PostureClass(IntEnum):
     RIGHT = 2
 
     def __str__(self) -> str:
+        if self.value == 0:
+            return "Rückenlage"
+        if self.value == 1:
+            return "linke Seitenl."
+        if self.value == 2:
+            return "rechte Seitenl."
         return self.name.capitalize()
 
 
@@ -58,14 +64,14 @@ class PhysionetDataset(Dataset):
             PostureClass.SUPINE,
             PostureClass.LEFT,
             PostureClass.RIGHT,
-            None,
-            None,
-            None,
-            None,
-            # PostureClass.LEFT,
-            # PostureClass.LEFT,
-            # PostureClass.RIGHT,
-            # PostureClass.RIGHT,
+            # None,
+            # None,
+            # None,
+            # None,
+            PostureClass.LEFT,
+            PostureClass.LEFT,
+            PostureClass.RIGHT,
+            PostureClass.RIGHT,
             PostureClass.SUPINE,
             PostureClass.SUPINE,
             PostureClass.SUPINE,
