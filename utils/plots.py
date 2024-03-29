@@ -20,15 +20,15 @@ def plot_confusion_matrix(
 ):
     if normalize:
         cm = cm.astype("float") / cm.sum(axis=1)[:, np.newaxis]
-    plt.rcParams.update({"font.size": 22})
+    # plt.rcParams.update({"font.size": 22})
     classes = [str(c) for c in PostureClass]
     fig = plt.figure(figsize=(10, 10))
     ax = fig.gca()
     im = ax.imshow(cm, interpolation="nearest", cmap=cmap)
-    plt.title(title)
+    plt.title(title, fontsize=22)
     tick_marks = np.arange(len(classes))
-    plt.xticks(tick_marks, classes, rotation=90)
-    plt.yticks(tick_marks, classes)
+    plt.xticks(tick_marks, classes, rotation=90, fontsize=22)
+    plt.yticks(tick_marks, classes, fontsize=22)
 
     fmt = ".2f" if normalize else "d"
     thresh = cm.max() / 2.0
@@ -39,19 +39,20 @@ def plot_confusion_matrix(
             format(cm[i, j], fmt),
             horizontalalignment="center",
             color="white" if cm[i, j] > thresh else "black",
+            fontsize=22,
         )
 
-    plt.ylabel("Wahrheit")
+    plt.ylabel("Wahrheit", fontsize=22)
     # im.axes.tick_params(color="#CACACA", labelcolor="#CACACA")
     # ax.xaxis.label.set_color("#CACACA")
     # ax.yaxis.label.set_color("#CACACA")
-    plt.xlabel("Vorhersage")
+    plt.xlabel("Vorhersage", fontsize=22)
 
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.25)
     norm = mpl.colors.Normalize(vmin=0, vmax=1)
     cb = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), cax=cax)
-    # cb.ax.yaxis.set_tick_params(color="#CACACA")
+    cb.ax.tick_params(labelsize=22)
     # cb.outline.set_edgecolor("#CACACA")
     # plt.setp(plt.getp(cb.ax.axes, "yticklabels"), color="#CACACA")
 
@@ -189,9 +190,9 @@ def reshape_image(image):
     return image.reshape(new_shape)
 
 
-def image_row(*images: List, titles=[], cmap="gist_stern", figsize=(10, 10)):
+def image_row(*images: List, titles=[], cmap="gist_stern", figsize=(10, 10), gridspec_kw=None):
     titles += [None] * (len(images) - len(titles))
-    fig, axs = plt.subplots(1, len(images), figsize=figsize)
+    fig, axs = plt.subplots(1, len(images), figsize=figsize, gridspec_kw=gridspec_kw)
     for i, (col, image) in enumerate(zip(axs, images)):
         plot_image(image, title=titles[i], ax=col, cmap=cmap)
 
